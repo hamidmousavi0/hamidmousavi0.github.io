@@ -1,34 +1,53 @@
-"adams":
-  - firstname: ["Edwin", "E.", "E. P.", "Edwin Plimpton"]
-    url: https://en.wikipedia.org/wiki/Edwin_Plimpton_Adams
+"Daneshtalab":
+  - firstname: ["Masoud", "M." , "Masoud Daneshtalab"]
+    url: https://www.mdu.se/en/malardalen-university/staff?id=mdb01
 
-"podolsky":
-  - firstname: ["Boris", "B.", "B. Y.", "Boris Yakovlevich"]
-    url: https://en.wikipedia.org/wiki/Boris_Podolsky
+"Mousavi":
+  - firstname: ["SeyedAli", "SA." , "SeyedAli Mousavi"]
+    url: https://www.es.mdu.se/staff/5503-Seyedali_Mousavi
 
-"rosen":
-  - firstname: ["Nathan", "N."]
-    url: https://en.wikipedia.org/wiki/Nathan_Rosen
+"Loni": 
+  - firstname: ["Mohammad", "M." , "Mohammad Loni"]
+    url: https://www.es.mdu.se/staff/3662-Mohammad_Loni
 
-"bach":
-  - firstname: ["Johann Sebastian", "J. S."]
-    url: https://en.wikipedia.org/wiki/Johann_Sebastian_Bach
+"Zoljodi": 
+  - firstname: ["Ali", "A." , "Ali Zoljodi"]
+    url: https://www.es.mdu.se/staff/3662-Mohammad_Loni    
 
-  - firstname: ["Carl Philipp Emanuel", "C. P. E."]
-    url: https://en.wikipedia.org/wiki/Carl_Philipp_Emanuel_Bach
+"Fang": 
+  - firstname: ["Zhenman", "Z." , "Zhenman Fang"]
+    url: https://www.sfu.ca/~zhenman/
 
-"przibram":
-  - firstname: ["Karl"]
-    url: https://link.springer.com/article/10.1007/s00016-019-00242-z
+"Riazati": 
+  - firstname: ["Mohammad", "M." , "Mohammad Riazati"]
+    url: https://www.es.mdu.se/staff/4020-Mohammad_Riazati
 
-"schrodinger":
-  - firstname: ["Erwin"]
-    url: https://en.wikipedia.org/wiki/Erwin_Schr%C3%B6dinger
+"Raik": 
+  - firstname: ["Jaan", "J." , "Jaan Raik"]
+    url: https://jaanraik.wordpress.com/
+"Jenihhin": 
+  - firstname: ["Maksim", "M." , "Maksim Jenihhin"]
+    url: https://taltech.ee/en/contacts/maksim-jenihhin 
 
-"lorentz":
-  - firstname: ["Hendrik Antoon"]
-    url: https://en.wikipedia.org/wiki/Hendrik_Lorentz
+"Alibeigi": 
+  - firstname: ["Mina", "M." , "Mina Alibeigi"]
+    url: https://scholar.google.com/citations?user=gJA_rJYAAAAJ&hl=en
 
-"planck":
-  - firstname: ["Max"]
-    url: https://en.wikipedia.org/wiki/Max_Planck
+"Sjödin": 
+  - firstname: ["Mikael", "M." , "Mikael Sjödin"]
+    url: https://www.es.mdu.se/staff/63-Mikael_Sjodin
+
+"Ahmadilivani": 
+  - firstname: ["Mohammad Hasan", "MH." , "Mohammad Hasan Ahmadilivani"]
+    url: https://taltech.ee/en/contacts/mohammad-hasan-ahmadilivani
+
+"Mahini": 
+  - firstname: ["Hamidreza", "MH." , "Hamidreza Mahini"]
+    url: https://scholar.google.com/citations?user=eR1NR1oAAAAJ&hl=en
+
+"Eftekhari": 
+  - firstname: ["Mahdi", "MH." , "Mahdi Eftekhari"]
+    url: https://scholar.google.com/citations?user=e5qD3-EAAAAJ&hl=en
+
+
+        

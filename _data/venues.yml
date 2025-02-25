@@ -1,9 +1,55 @@
-"AJP":
-  url: https://aapt.scitation.org/journal/ajp
-  color: "#00369f"
+ICML:
+  url: http://www.icml.cc/
+  color: 10100e
 
-"PhysRev":
-  url: https://journals.aps.org/
+ICLR:
+  url: https://iclr.cc/
+  color: ced42a
 
-"Vision":
-  color: "#009f36"
+arXiv:
+  url: https://arxiv.org
+  color: ae1b1a
+
+NeurIPS:
+  url: http://www.nips.cc/
+  color: 69438c
+
+CVPR:
+  url: https://openaccess.thecvf.com/
+  color: 1d5d8d
+
+ICCV:
+  url: https://openaccess.thecvf.com/
+  color: 1d5d8d
+
+AAAI:
+  url: https://aaai.org/Conferences/AAAI/aaai.php
+  color: 0076df
+
+ESWEEK:
+  url: https://esweek.org/
+  color: 0076df
+
+DATE:
+  url: https://www.date-conference.com/
+  color: 0076df
+
+ICCAD:
+  url: https://iccad.com/
+  color: 0076df
+
+ADBIS:
+  url: https://adbis2025.github.io/
+  color: 0076df
+
+FMEC:
+  url: https://emergingtechnet.org/FMEC2024/
+  color: 0076df
+
+ISQED:
+  url: https://www.isqed.org/
+  color: 0076df
+
+IOLTS:
+  url: https://orion.polito.it/iolts/
+  color: 0076df
