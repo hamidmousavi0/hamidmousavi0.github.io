@@ -37,7 +37,18 @@ ninja.data = [{
           handler: () => {
             window.location.href = "/cv/";
           },
-        },{id: "news-our-presentation-for-the-reliability-of-deep-neural-networks-in-tss-reliability-of-dnns",
+        },{id: "post-a-post-with-jupyter-notebook",
+      
+        title: "a post with jupyter notebook",
+      
+      description: "The Reliability and Security of Deep Neural Networks",
+      section: "Posts",
+      handler: () => {
+        
+          window.location.href = "/blog/2025/Reliability/";
+        
+      },
+    },{id: "news-our-presentation-for-the-reliability-of-deep-neural-networks-in-tss-reliability-of-dnns",
           title: 'Our presentation for the Reliability of Deep Neural Networks in TSS. Reliability of...',
           description: "",
           section: "News",},{
