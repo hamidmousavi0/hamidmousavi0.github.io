@@ -30,8 +30,8 @@ ninja.data = [{
           handler: () => {
             window.location.href = "/cv/";
           },
-        },{id: "news-a-simple-inline-announcement",
-          title: 'A simple inline announcement.',
+        },{id: "news-we-have-presented-the-reliability-of-deep-neural-networks-in-tss-please-review-the-presentation-files-and-implementations-on-the-following-page-reliability-of-dnns",
+          title: 'We have presented the reliability of Deep Neural Networks in TSS. Please review...',
           description: "",
           section: "News",},{
         id: 'social-email',
