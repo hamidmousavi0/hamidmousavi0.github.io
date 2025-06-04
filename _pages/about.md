@@ -16,7 +16,6 @@ announcements:
   limit: 5 # leave blank to include all the news in the `_news` folder
   
 selected_papers: true # includes a list of papers marked as "selected={true}"
-social: false # includes social icons at the bottom of the page
 
 ---
 
