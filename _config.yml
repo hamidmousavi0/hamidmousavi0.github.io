@@ -143,7 +143,6 @@ collections:
     defaults:
       layout: post
     output: true
-    permalink: /:news/:title/
   projects:
     output: true
     permalink: /:collection/:title/
