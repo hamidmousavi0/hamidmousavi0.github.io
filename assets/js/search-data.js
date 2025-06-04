@@ -37,9 +37,9 @@ ninja.data = [{
           handler: () => {
             window.location.href = "/cv/";
           },
-        },{id: "post-a-post-with-jupyter-notebook",
+        },{id: "post-the-reliability-and-security-of-deep-neural-networks",
       
-        title: "a post with jupyter notebook",
+        title: "The Reliability and Security of Deep Neural Networks",
       
       description: "The Reliability and Security of Deep Neural Networks",
       section: "Posts",
