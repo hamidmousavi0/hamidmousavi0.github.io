@@ -1,8 +1,9 @@
 ---
 layout: post
-date: 2015-10-22 15:59:00-0400
+date: 2025-06-04 
 inline: true
 related_posts: false
 ---
 
-A simple inline announcement.
+We have presented the reliability of Deep Neural Networks in TSS. Please review the presentation files and implementations on the following page. 
+[Reliability of DNNs](https://github.com/hamidmousavi0/TSS_Reliability_School)
