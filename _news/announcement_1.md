@@ -5,5 +5,5 @@ inline: true
 related_posts: false
 ---
 
-We have presented the reliability of Deep Neural Networks in TSS. Please review the presentation files and implementations on the following page. 
+Our presentation for the Reliability of Deep Neural Networks in TSS.
 [Reliability of DNNs](https://github.com/hamidmousavi0/TSS_Reliability_School)
