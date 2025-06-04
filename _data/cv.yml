@@ -60,7 +60,7 @@
   type: time_table
   contents:
     - title: <a href="https://github.com/hamidmousavi0/reliable-relu-toolbox.git">RReLU</a>
-      year: 2015-now
+      year: 2024
       description: Reliable ReLU Toolbox (RReLU) To Enhance Resilience of DNNs.
 
 # - title: Honors and Awards
