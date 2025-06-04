@@ -30,8 +30,8 @@ ninja.data = [{
           handler: () => {
             window.location.href = "/cv/";
           },
-        },{id: "news-we-have-presented-the-reliability-of-deep-neural-networks-in-tss-please-review-the-presentation-files-and-implementations-on-the-following-page-reliability-of-dnns",
-          title: 'We have presented the reliability of Deep Neural Networks in TSS. Please review...',
+        },{id: "news-our-presentation-for-the-reliability-of-deep-neural-networks-in-tss-reliability-of-dnns",
+          title: 'Our presentation for the Reliability of Deep Neural Networks in TSS. Reliability of...',
           description: "",
           section: "News",},{
         id: 'social-email',
