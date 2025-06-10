@@ -51,6 +51,9 @@ ninja.data = [{
     },{id: "news-our-presentation-for-the-reliability-of-deep-neural-networks-in-tss-reliability-of-dnns",
           title: 'Our presentation for the Reliability of Deep Neural Networks in TSS. Reliability of...',
           description: "",
+          section: "News",},{id: "news-our-paper-got-accepted-to-ijcnn-2025-https-2025-ijcnn-org",
+          title: 'Our paper got accepted to [IJCNN 2025]!(https://2025.ijcnn.org/).',
+          description: "",
           section: "News",},{
         id: 'social-email',
         title: 'email',
