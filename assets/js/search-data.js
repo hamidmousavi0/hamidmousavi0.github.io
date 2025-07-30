@@ -65,6 +65,9 @@ ninja.data = [{
           section: "News",},{id: "news-our-paper-got-accepted-to-ijcnn-2025",
           title: 'Our paper got accepted to IJCNN 2025.',
           description: "",
+          section: "News",},{id: "news-my-presentation-for-the-diffusion-model-in-generative-ai-seminar-at-mdu-is-available-in-the-blog-diffusion-model",
+          title: 'My presentation for the Diffusion model in Generative AI Seminar at MDU is...',
+          description: "",
           section: "News",},{
         id: 'social-email',
         title: 'email',
