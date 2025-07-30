@@ -62,6 +62,10 @@
     - title: <a href="https://github.com/hamidmousavi0/reliable-relu-toolbox.git">RReLU</a>
       year: 2024
       description: Reliable ReLU Toolbox (RReLU) To Enhance Resilience of DNNs.
+      - title: <a href="https://github.com/hamidmousavi0/ProARD.git">ProARD</a>
+      year: 2024
+      description: Progressive Adversarial Robustness Distillation.
+
 
 # - title: Honors and Awards
 #   type: time_table
