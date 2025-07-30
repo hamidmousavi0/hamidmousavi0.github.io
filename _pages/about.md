@@ -22,5 +22,5 @@ selected_papers: true # includes a list of papers marked as "selected={true}"
 I am currently a PhD student at Mälardalen University.
 My research has focused on the automatic design of high-performance, compact, robust, and reliable deep learning-based systems for autonomous driving.
 
-My research interests lie in trustworthy, tiny, discriminative and generative deep learning models, with a focus on deploying them on resource-constrained devices.
+My research interests focus on trustworthy deep learning, encompassing areas such as adversarial robustness, fairness, and reliability in both discriminative and generative models. I am also deeply engaged in tiny deep learning, exploring techniques like pruning, quantization, and neural architecture search to enable efficient deployment of deep neural networks on resource-constrained devices.
 
