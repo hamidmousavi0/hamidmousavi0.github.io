@@ -37,7 +37,18 @@ ninja.data = [{
           handler: () => {
             window.location.href = "/cv/";
           },
-        },{id: "post-the-reliability-and-security-of-deep-neural-networks",
+        },{id: "post-generative-ai-seminar-diffusion-models",
+      
+        title: "Generative AI Seminar (Diffusion Models)",
+      
+      description: "Basics of diffusion model",
+      section: "Posts",
+      handler: () => {
+        
+          window.location.href = "/blog/2025/Diffusion/";
+        
+      },
+    },{id: "post-the-reliability-and-security-of-deep-neural-networks",
       
         title: "The Reliability and Security of Deep Neural Networks",
       
