@@ -10,11 +10,11 @@
       --panel:#12141a;
       --muted:#9aa3af;
       --ink:#e5e7eb;
-      --accent:#60a5fa;   /* controls buttons/links */
-      --title:#a5b4fc;    /* title color (indigo-300) */
-      --authors:#22d3ee;  /* authors color (cyan-400) */
-      --hl-bg:#f59e0b;    /* highlight background (amber-500) */
-      --hl-fg:#111827;    /* highlight text (near-black) */
+      --accent:#60a5fa;   /* buttons/links */
+      --title:#a5b4fc;    /* title color */
+      --authors:#22d3ee;  /* authors color */
+      --hl-bg:#f59e0b;    /* highlight background */
+      --hl-fg:#111827;    /* highlight text */
     }
     *{box-sizing:border-box}
     body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
@@ -22,8 +22,14 @@
     a:hover{text-decoration:underline}
     .wrap{max-width:1100px;margin:0 auto;padding:24px}
     h1{font-size:24px;margin:0 0 12px}
+    /* Top row */
     .toolbar{display:grid;grid-template-columns:1fr 140px 220px 160px auto;gap:8px;align-items:center}
-    .toolbar input,.toolbar select,.toolbar button{background:#1a1e26;color:var(--ink);border:1px solid #2a2f3a;border-radius:10px;padding:10px 12px}
+    /* Advanced row */
+    .advanced{display:grid;grid-template-columns:1fr 120px 1fr 120px;gap:8px;align-items:center;margin-top:8px}
+    .toolbar input,.toolbar select,.toolbar button,
+    .advanced input,.advanced select,.advanced button{
+      background:#1a1e26;color:var(--ink);border:1px solid #2a2f3a;border-radius:10px;padding:10px 12px
+    }
     .toolbar button{cursor:pointer;background:#2563eb;border-color:#2563eb}
     .toolbar button.secondary{background:#1a1e26;border-color:#2a2f3a}
     .toolbar .full{grid-column:1 / -1}
@@ -41,20 +47,23 @@
     .spinner{display:none;margin-left:8px;border:2px solid #2a2f3a;border-top:2px solid var(--accent);border-radius:50%;width:16px;height:16px;animation:spin 0.9s linear infinite}
     mark{background:var(--hl-bg);color:var(--hl-fg);padding:0 .12em;border-radius:.2em}
     @keyframes spin{to{transform:rotate(360deg)}}
-    @media (max-width:860px){.toolbar{grid-template-columns:1fr 1fr}.toolbar .full{grid-column:1 / -1}}
+    @media (max-width:980px){
+      .toolbar{grid-template-columns:1fr 1fr}
+      .toolbar .full{grid-column:1 / -1}
+      .advanced{grid-template-columns:1fr 100px 1fr 100px}
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
     <h1>Papers Explorer</h1>
 
+    <!-- Top row -->
     <div class="toolbar">
-      <!-- Dataset selector -->
       <select id="dataset">
         <option value="">Select dataset…</option>
       </select>
 
-      <!-- Filters -->
       <select id="year"><option value="">Year (all)</option></select>
       <input id="venue" type="search" placeholder="Venue contains… e.g. NeurIPS, CVPR"/>
       <select id="sort">
@@ -75,13 +84,21 @@
       </div>
     </div>
 
+    <!-- Advanced exact filters -->
+    <div class="advanced">
+      <input id="titleFilter" type="search" placeholder="Title filter…">
+      <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="titleExact"> Exact</label>
+      <input id="authorFilter" type="search" placeholder="Author filter…">
+      <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="authorExact"> Exact</label>
+    </div>
+
     <div id="warning" class="warning"></div>
     <div id="list" class="list"></div>
   </div>
 
   <script>
   // ---------- Config ----------
-  const MAX_ABSTRACT_CHARS = 140; // tweak this to show more/less
+  const MAX_ABSTRACT_CHARS = 140;
 
   // ---------- Safe coercion helpers ----------
   function toStr(v){ if(v==null) return ""; if(Array.isArray(v)) return v.map(toStr).join(" "); if(typeof v==="object") return JSON.stringify(v); return String(v); }
@@ -129,6 +146,10 @@
   const elCSV = document.getElementById('btnCSV');
   const elLoading = document.getElementById('loading');
   const elSpin = document.getElementById('spin');
+  const elTitleFilter = document.getElementById('titleFilter');
+  const elTitleExact = document.getElementById('titleExact');
+  const elAuthorFilter = document.getElementById('authorFilter');
+  const elAuthorExact = document.getElementById('authorExact');
 
   function setLoading(on){ elLoading.style.display = on ? 'inline-flex' : 'none'; elSpin.style.display = on ? 'inline-block' : 'none'; }
 
@@ -199,6 +220,23 @@
     return score;
   }
 
+  function matchesTitle(r, text, exact){
+    if(!text) return true;
+    const t = toStr(r.title).toLowerCase();
+    const q = toStr(text).toLowerCase().trim();
+    return exact ? (t === q) : t.includes(q);
+  }
+
+  function matchesAuthor(r, text, exact){
+    if(!text) return true;
+    const q = toStr(text).toLowerCase().trim();
+    const authors = (r.authors || []).map(a => toStr(a).toLowerCase().trim()).filter(Boolean);
+    if (!authors.length) return false;
+    if (exact) return authors.some(a => a === q);
+    // substring match against any author
+    return authors.some(a => a.includes(q));
+  }
+
   function applyFilters(){
     const q = toStr(elQ.value).trim().toLowerCase();
     const yr = toStr(elYear.value).trim();
@@ -206,11 +244,19 @@
     const sort = elSort.value;
     const qTokens = q ? q.split(/\s+/).filter(Boolean) : [];
 
+    const titleText = elTitleFilter.value || '';
+    const titleExact = elTitleExact.checked;
+    const authorText = elAuthorFilter.value || '';
+    const authorExact = elAuthorExact.checked;
+
     let rows = [];
     for (let i=0;i<DATA.length;i++){
       const r = DATA[i];
       if (yr && String(r.year) !== yr) continue;
       if (vn && !toStr(r.venue).toLowerCase().includes(vn)) continue;
+      if (!matchesTitle(r, titleText, titleExact)) continue;
+      if (!matchesAuthor(r, authorText, authorExact)) continue;
+
       if (qTokens.length){
         const s = scoreRow(i, qTokens);
         if (s <= 0) continue;
@@ -231,6 +277,7 @@
     }
 
     VIEW = rows.map(x=>x.row);
+    // We highlight only free-text tokens (q). Exact filters are not highlighted to avoid confusion.
     renderList(VIEW, qTokens);
   }
 
@@ -273,7 +320,10 @@
       }
       DATA = normalizeArray(data);
       buildIndex();
+      // Reset filters
       elQ.value=''; elYear.value=''; elVenue.value=''; elSort.value='relevance';
+      elTitleFilter.value=''; elTitleExact.checked=false;
+      elAuthorFilter.value=''; elAuthorExact.checked=false;
       applyFilters();
     }catch(e){
       const msg = (e && e.message) ? e.message : String(e);
@@ -314,12 +364,21 @@
   function debounce(fn, ms=160){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
 
   document.getElementById('btnCSV').addEventListener('click', ()=> downloadCSV(VIEW.length ? VIEW : DATA));
-  document.getElementById('btnClear').addEventListener('click', ()=>{ elQ.value=''; elYear.value=''; elVenue.value=''; elSort.value='relevance'; applyFilters(); });
+  document.getElementById('btnClear').addEventListener('click', ()=>{
+    elQ.value=''; elYear.value=''; elVenue.value=''; elSort.value='relevance';
+    elTitleFilter.value=''; elTitleExact.checked=false;
+    elAuthorFilter.value=''; elAuthorExact.checked=false;
+    applyFilters();
+  });
 
   elQ.addEventListener('input', debounce(applyFilters, 120));
   elYear.addEventListener('change', applyFilters);
   elVenue.addEventListener('input', debounce(applyFilters, 120));
   elSort.addEventListener('change', applyFilters);
+  elTitleFilter.addEventListener('input', debounce(applyFilters, 120));
+  elTitleExact.addEventListener('change', applyFilters);
+  elAuthorFilter.addEventListener('input', debounce(applyFilters, 120));
+  elAuthorExact.addEventListener('change', applyFilters);
 
   elDataset.addEventListener('change', () => {
     const path = elDataset.value;
