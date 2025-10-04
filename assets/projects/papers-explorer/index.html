@@ -1,230 +1,329 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Papers Search</title>
+  <title>All-Conference Papers Explorer</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
-    :root { --bg:#0b0b10; --panel:#11131a; --muted:#9aa0aa; --text:#e6e8ee; --accent:#5fd4ff; }
-    html,body { margin:0; padding:0; background:var(--bg); color:var(--text); font:16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue", Arial; }
-    .wrap { max-width: 1000px; margin: 0 auto; padding: 28px 16px; }
-    h1 { margin: 0 0 6px; font-size: 28px; }
-    .muted { color: var(--muted); }
-    .row { display:flex; flex-wrap:wrap; gap:10px; margin:14px 0; }
-    .input, select { background: var(--panel); color: var(--text); border:1px solid #1e2230; border-radius:12px; padding:10px 12px; outline:0; }
-    .input { flex:1 1 280px; }
-    select { flex:0 0 140px; }
-    .btn { background: var(--accent); color: #041015; border:0; border-radius:12px; padding:10px 14px; cursor:pointer; font-weight:600; }
-    .grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top:16px; }
-    @media (min-width: 720px) { .grid { grid-template-columns: 1fr 1fr; } }
-    .card { background: var(--panel); border:1px solid #1e2230; border-radius:14px; padding:14px; }
-    .title { font-weight:700; margin:0 0 6px; font-size: 16px; }
-    .meta { font-size: 12px; color: var(--muted); display:flex; gap:10px; flex-wrap:wrap; }
-    .authors { margin-top:6px; font-size: 14px; color:#cfd3da }
-    .abstract { margin-top:8px; font-size: 13px; color:#c6cad4; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:4; overflow:hidden; }
-    .links { margin-top:10px; display:flex; gap:10px; }
-    .links a { color: var(--accent); text-decoration:none; }
-    .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-    .pill { font-size: 12px; color: var(--muted); padding:4px 8px; border:1px solid #1e2230; border-radius:999px; }
-    .count { margin-left:auto; font-size: 13px; color: var(--muted); }
-    .small { font-size:12px; }
+    :root{--bg:#0b0d10;--panel:#12141a;--muted:#9aa3af;--ink:#e5e7eb;--accent:#60a5fa}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+    a{color:var(--accent);text-decoration:none}
+    a:hover{text-decoration:underline}
+    .wrap{max-width:1100px;margin:0 auto;padding:24px}
+    h1{font-size:24px;margin:0 0 12px}
+    .toolbar{display:grid;grid-template-columns:1fr 120px 220px 160px auto;gap:8px;align-items:center}
+    .toolbar input,.toolbar select, .toolbar button{
+      background:#1a1e26;color:var(--ink);border:1px solid #2a2f3a;border-radius:10px;padding:10px 12px
+    }
+    .toolbar button{cursor:pointer;background:#2563eb;border-color:#2563eb}
+    .toolbar button.secondary{background:#1a1e26;border-color:#2a2f3a}
+    .toolbar .full{grid-column:1 / -1}
+    .bar{display:flex;gap:10px;align-items:center;margin-top:10px;color:var(--muted)}
+    .count{font-weight:600;color:#cbd5e1}
+    .warning{display:none;margin-top:12px;padding:10px 12px;border:1px solid #ef4444;background:#2a1212;color:#fecaca;border-radius:10px;white-space:pre-wrap}
+    .list{margin-top:16px;display:grid;grid-template-columns:1fr;gap:10px}
+    .card{background:var(--panel);border:1px solid #2a2f3a;border-radius:14px;padding:14px}
+    .title{font-size:16px;font-weight:700;margin:0 0 6px}
+    .meta{font-size:12px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap}
+    .authors{margin-top:6px;color:#cbd5e1}
+    .abs{margin-top:8px;color:#d1d5db}
+    .links{margin-top:8px;display:flex;gap:12px;flex-wrap:wrap}
+    .pill{display:inline-flex;gap:8px;align-items:center}
+    .footer{margin-top:24px;color:var(--muted)}
+    .spinner{display:none;margin-left:8px;border:2px solid #2a2f3a;border-top:2px solid var(--accent);border-radius:50%;width:16px;height:16px;animation:spin 0.9s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @media (max-width:860px){.toolbar{grid-template-columns:1fr 1fr}.toolbar .full{grid-column:1 / -1}}
   </style>
 </head>
 <body>
   <div class="wrap">
-    <h1>Papers Search</h1>
-    <div class="muted small">Static search UI.</div>
+    <h1>All-Conference Papers Explorer</h1>
 
-    <div class="row">
-      <input id="jsonUrl" class="input" placeholder="JSON URL (e.g. all_2025_papers.json)" />
-      <button class="btn" id="loadBtn">Load</button>
-    </div>
-
-    <div class="row toolbar">
-      <input id="q" class="input" placeholder="Search title, author, venue…" />
+    <div class="toolbar">
+      <input id="q" type="search" placeholder="Search title / author / abstract…" />
       <select id="year">
-        <option value="">All years</option>
+        <option value="">Year (all)</option>
       </select>
-      <select id="venue">
-        <option value="">All venues</option>
-      </select>
+      <input id="venue" type="search" placeholder="Venue contains… e.g. NeurIPS, CVPR"/>
       <select id="sort">
         <option value="relevance">Sort: Relevance</option>
         <option value="year_desc">Sort: Year ↓</option>
         <option value="year_asc">Sort: Year ↑</option>
         <option value="title_asc">Sort: Title A→Z</option>
       </select>
-      <span class="count" id="count">0 results</span>
+      <button id="btnClear" class="secondary" title="Clear filters">Clear</button>
+
+      <div class="full bar">
+        <span id="count" class="count">0 results</span>
+        <span id="sources"></span>
+        <span id="loading" class="pill">Loading<span class="spinner" id="spin"></span></span>
+        <span style="margin-left:auto"></span>
+        <input id="jsonUrl" type="url" placeholder="JSON URL (same origin)" style="min-width:340px"/>
+        <button id="btnLoad">Load</button>
+        <button id="btnCSV" class="secondary">Download CSV</button>
+      </div>
     </div>
 
-    <div id="warning" class="muted small" style="display:none;margin-top:8px"></div>
+    <div id="warning" class="warning"></div>
+    <div id="list" class="list"></div>
 
-    <div class="grid" id="list"></div>
+    <div class="footer">
+      Tip: you can pass a custom file via <code>?data=/assets/projects/papers-explorer/all_2025_papers.json</code>
+    </div>
   </div>
 
-<script>
-// --- tiny utility helpers ---
-const norm = (s) => (s||"").toString().normalize("NFKD").replace(/[\u0300-\u036f]/g,"").trim().toLowerCase();
-const uniq = (arr) => Array.from(new Set(arr.filter(Boolean)));
-const by = (f) => (a,b)=> (f(a)>f(b)?1:(f(a)<f(b)?-1:0));
+  <script>
+  // ---------- Safe coercion helpers ----------
+  function toStr(v) {
+    if (v == null) return "";
+    if (Array.isArray(v)) return v.map(toStr).join(" ");
+    if (typeof v === "object") return JSON.stringify(v);
+    return String(v);
+  }
+  function toStrOrNull(v) {
+    const s = toStr(v).trim();
+    return s ? s : null;
+  }
+  function toAuthors(v) {
+    if (Array.isArray(v)) return v.map(toStr).filter(Boolean);
+    if (typeof v === "string") return v.split(/\s*,\s*/).filter(Boolean);
+    return [];
+  }
+  function toYear(v) {
+    const n = Number(String(v ?? "").trim());
+    return Number.isFinite(n) ? n : null;
+  }
+  function clamp(n, lo, hi){ return Math.max(lo, Math.min(hi, n)); }
 
-let DATA = [];
-let INDEX = []; // lightweight tokens per item for relevance scoring
+  // ---------- App state ----------
+  let DATA = [];        // normalized records
+  let VIEW = [];        // filtered/sorted
+  let INDEX = [];       // tokens cache (for quick relevance score)
 
-function buildIndex() {
-  INDEX = DATA.map((r) => {
-    const t = [r.title, (r.authors||[]).join(" "), r.venue, r.year].map(x=> (x??"").toString()).join(" ");
-    return norm(t);
+  // ---------- UI refs ----------
+  const elList = document.getElementById('list');
+  const elWarn = document.getElementById('warning');
+  const elCount = document.getElementById('count');
+  const elSources = document.getElementById('sources');
+  const elQ = document.getElementById('q');
+  const elYear = document.getElementById('year');
+  const elVenue = document.getElementById('venue');
+  const elSort = document.getElementById('sort');
+  const elLoad = document.getElementById('btnLoad');
+  const elCSV = document.getElementById('btnCSV');
+  const elClear = document.getElementById('btnClear');
+  const elJson = document.getElementById('jsonUrl');
+  const elLoading = document.getElementById('loading');
+  const elSpin = document.getElementById('spin');
+
+  function setLoading(on){
+    elLoading.style.display = on ? 'inline-flex' : 'none';
+    elSpin.style.display = on ? 'inline-block' : 'none';
+  }
+
+  // ---------- Render ----------
+  function renderList(rows){
+    elList.innerHTML = '';
+    const frag = document.createDocumentFragment();
+    for(const r of rows){
+      const art = document.createElement('article');
+      art.className = 'card';
+      art.innerHTML = `
+        <div class="title">${escapeHTML(r.title || '(Untitled)')}</div>
+        <div class="meta">
+          ${r.year ? `<span>${r.year}</span>` : ''}
+          ${r.venue ? `<span>• ${escapeHTML(r.venue)}</span>` : ''}
+        </div>
+        ${r.authors?.length ? `<div class="authors">${escapeHTML(r.authors.join(', '))}</div>` : ''}
+        ${r.abstract ? `<div class="abs">${escapeHTML(r.abstract)}</div>` : ''}
+        <div class="links">
+          ${r.pdf_url ? `<a href="${attr(r.pdf_url)}" target="_blank" rel="noopener">PDF</a>` : ''}
+          ${r.paper_url ? `<a href="${attr(r.paper_url)}" target="_blank" rel="noopener">Source</a>` : ''}
+        </div>
+      `;
+      frag.appendChild(art);
+    }
+    elList.appendChild(frag);
+    elCount.textContent = `${rows.length.toLocaleString()} results`;
+  }
+
+  function escapeHTML(s){ return toStr(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+  function attr(s){ return escapeHTML(s); }
+
+  // ---------- Index / search ----------
+  function buildIndex(){
+    INDEX = DATA.map(r => {
+      const bag = (toStr(r.title) + ' ' + toStr(r.abstract) + ' ' + toStr(r.authors?.join(' '))).toLowerCase();
+      return bag;
+    });
+    // populate year options
+    const years = Array.from(new Set(DATA.map(r => r.year).filter(Boolean))).sort((a,b)=>b-a);
+    elYear.innerHTML = `<option value="">Year (all)</option>` + years.map(y=>`<option value="${y}">${y}</option>`).join('');
+    // venue sample
+    const venues = Array.from(new Set(DATA.map(r => r.venue).filter(Boolean))).slice(0,6);
+    elSources.textContent = venues.length ? `Venues: ${venues.join(' · ')}` : '';
+  }
+
+  function scoreRow(idx, qTokens){
+    // simple term frequency across our bag; title gets a slight boost separately
+    if (!qTokens.length) return 0;
+    const bag = INDEX[idx];
+    let score = 0;
+    for(const t of qTokens){
+      if (!t) continue;
+      // count occurrences
+      const m = bag.split(t).length - 1;
+      score += m;
+      // title boost
+      const title = toStr(DATA[idx].title).toLowerCase();
+      if (title.includes(t)) score += 2;
+    }
+    return score;
+  }
+
+  function applyFilters(){
+    const q = toStr(elQ.value).trim().toLowerCase();
+    const yr = toStr(elYear.value).trim();
+    const vn = toStr(elVenue.value).trim().toLowerCase();
+    const sort = elSort.value;
+
+    const qTokens = q ? q.split(/\s+/).filter(Boolean) : [];
+
+    let rows = [];
+    for (let i=0;i<DATA.length;i++){
+      const r = DATA[i];
+      if (yr && String(r.year) !== yr) continue;
+      if (vn && !toStr(r.venue).toLowerCase().includes(vn)) continue;
+
+      if (qTokens.length){
+        const s = scoreRow(i, qTokens);
+        if (s <= 0) continue;
+        rows.push({row:r, s});
+      } else {
+        rows.push({row:r, s:0});
+      }
+    }
+
+    // sort
+    if (sort === 'relevance'){
+      rows.sort((a,b)=> b.s - a.s);
+    } else if (sort === 'year_desc'){
+      rows.sort((a,b)=> (b.row.year||0) - (a.row.year||0));
+    } else if (sort === 'year_asc'){
+      rows.sort((a,b)=> (a.row.year||0) - (b.row.year||0));
+    } else if (sort === 'title_asc'){
+      rows.sort((a,b)=> toStr(a.row.title).localeCompare(toStr(b.row.title)));
+    }
+
+    VIEW = rows.map(x=>x.row);
+    renderList(VIEW);
+  }
+
+  // ---------- CSV ----------
+  function downloadCSV(rows){
+    const header = ["title","year","venue","authors","pdf_url","paper_url","abstract"];
+    const lines = [header.join(",")];
+    for (const r of rows){
+      const vals = [
+        toStr(r.title),
+        toStr(r.year),
+        toStr(r.venue),
+        toStr(r.authors?.join("; ")),
+        toStr(r.pdf_url),
+        toStr(r.paper_url),
+        toStr(r.abstract)
+      ].map(s => `"${toStr(s).replace(/"/g,'""')}"`);
+      lines.push(vals.join(","));
+    }
+    const blob = new Blob([lines.join("\n")], {type:"text/csv;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `papers_${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ---------- Loading ----------
+  async function loadJson(urlLike){
+    // compute absolute URL on same origin
+    const absUrl = urlLike.startsWith('http') ? urlLike
+                    : (location.origin + (urlLike.startsWith('/') ? urlLike : '/'+urlLike));
+
+    // reset UI
+    elWarn.style.display = 'none';
+    elWarn.textContent = '';
+    setLoading(true);
+    elJson.value = urlLike;
+
+    try{
+      const res = await fetch(absUrl, {cache:'no-store'});
+      if (!res.ok) throw new Error(`HTTP ${res.status} on ${absUrl}`);
+
+      let raw;
+      let data;
+      try{
+        data = await res.json();
+      }catch(parseErr){
+        raw = await (await fetch(absUrl, {cache:'no-store'})).text();
+        const sample = raw.slice(0,200).replace(/\n/g,' ');
+        throw new Error(`JSON parse error: ${(parseErr && parseErr.message)||parseErr}. Sample: ${sample}`);
+      }
+
+      // normalize records robustly (avoid (s||'').replace errors forever)
+      DATA = (Array.isArray(data) ? data : []).map(x => ({
+        title: toStr(x.title ?? x.paper_title),
+        authors: toAuthors(x.authors),
+        abstract: toStrOrNull(x.abstract),
+        pdf_url: toStrOrNull(x.pdf_url ?? x.pdf),
+        paper_url: toStrOrNull(x.paper_url ?? x.url),
+        venue: toStrOrNull(x.venue ?? x.conference),
+        year: toYear(x.year),
+      }));
+
+      buildIndex();
+      elQ.value = ''; elYear.value = ''; elVenue.value = ''; elSort.value = 'relevance';
+      applyFilters();
+    }catch(e){
+      const msg = (e && e.message) ? e.message : String(e);
+      console.error('[JSON load error]', msg);
+      elWarn.textContent = `Failed to load JSON: ${msg}`;
+      elWarn.style.display = 'block';
+      DATA = []; INDEX=[]; VIEW=[];
+      renderList([]);
+    }finally{
+      setLoading(false);
+    }
+  }
+
+  // ---------- Events ----------
+  function debounce(fn, ms=160){
+    let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), ms); };
+  }
+  elQ.addEventListener('input', debounce(applyFilters, 120));
+  elYear.addEventListener('change', applyFilters);
+  elVenue.addEventListener('input', debounce(applyFilters, 120));
+  elSort.addEventListener('change', applyFilters);
+  elLoad.addEventListener('click', () => {
+    const u = toStr(elJson.value).trim() || DEFAULT_JSON;
+    loadJson(u + (u.includes('?') ? '&' : '?') + 'nocache=' + Date.now());
   });
-}
-
-function populateFilters() {
-  const years = uniq(DATA.map(r => r.year).filter(Boolean)).sort();
-  const venues = uniq(DATA.map(r => r.venue).filter(Boolean)).sort();
-  const ySel = document.getElementById('year');
-  const vSel = document.getElementById('venue');
-  ySel.innerHTML = '<option value="">All years</option>' + years.map(y=>`<option value="${y}">${y}</option>`).join('');
-  vSel.innerHTML = '<option value="">All venues</option>' + venues.map(v=>`<option value="${v}">${v}</option>`).join('');
-}
-
-function relevanceScore(q, idxText) {
-  if (!q) return 0;
-  const terms = norm(q).split(/\s+/).filter(Boolean);
-  let score = 0;
-  for (const term of terms) {
-    // presence (+), title/author/venue are already in idx
-    if (idxText.includes(term)) score += 1;
-    // boost exact phrase
-    if (idxText.includes(' '+term+' ')) score += 0.3;
-  }
-  return score;
-}
-
-function render(list) {
-  const el = document.getElementById('list');
-  const count = document.getElementById('count');
-  count.textContent = `${list.length} results`;
-  el.innerHTML = list.map((p) => {
-    const a = (p.authors||[]).join(', ');
-    const abs = p.abstract ? `<div class="abstract">${escapeHtml(p.abstract)}</div>` : '';
-    const pdf = p.pdf_url ? `<a href="${p.pdf_url}" target="_blank" rel="noopener">PDF</a>` : '';
-    const src = p.paper_url ? `<a href="${p.paper_url}" target="_blank" rel="noopener">Page</a>` : '';
-    return `<div class="card">
-      <div class="title">${escapeHtml(p.title||'')}</div>
-      <div class="meta">${p.year?escapeHtml(p.year):''}${p.venue?` · ${escapeHtml(p.venue)}`:''}</div>
-      ${a?`<div class="authors">${escapeHtml(a)}</div>`:''}
-      ${abs}
-      <div class="links">${pdf} ${src}</div>
-    </div>`;
-  }).join('');
-}
-
-function escapeHtml(s){return (s||"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[c]);}
-
-function applyFilters() {
-  const q = document.getElementById('q').value;
-  const year = document.getElementById('year').value;
-  const venue = document.getElementById('venue').value;
-  const sort = document.getElementById('sort').value;
-
-  let rows = DATA.map((r,i)=>({r,i,score: relevanceScore(q, INDEX[i])}));
-
-  // filter by query presence if any term
-  if (q.trim()) rows = rows.filter(x => x.score > 0);
-  if (year) rows = rows.filter(x => String(x.r.year) === String(year));
-  if (venue) rows = rows.filter(x => x.r.venue === venue);
-
-  // sort
-  if (sort === 'relevance') {
-    rows.sort((a,b)=> b.score - a.score);
-  } else if (sort === 'year_desc') {
-    rows.sort((a,b)=> (b.r.year||0)-(a.r.year||0));
-  } else if (sort === 'year_asc') {
-    rows.sort((a,b)=> (a.r.year||0)-(b.r.year||0));
-  } else if (sort === 'title_asc') {
-    rows.sort(by(x=> (x.r.title||'').toLowerCase()));
-  }
-
-  render(rows.map(x=>x.r));
-}
-
-async function loadJson(url) {
-  const warn = document.getElementById('warning');
-  const list = document.getElementById('list');
-  const absUrl = url.startsWith('http')
-      ? url
-      : (location.origin + (url.startsWith('/') ? url : '/' + url));
-
-  // always clear previous error
-  warn.textContent = '';
-  warn.style.display = 'none';
-
-  try {
-    const res = await fetch(absUrl, { cache: 'no-store' });
-
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status} on ${absUrl}`);
-    }
-
-    // Try parse as JSON; surface parse errors with the first 200 chars of the file
-    let data;
-    try {
-      data = await res.json();
-    } catch (parseErr) {
-      // Fetch the raw text to help debug malformed JSON
-      const raw = await (await fetch(absUrl, { cache: 'no-store' })).text();
-      const sample = raw.slice(0, 200).replace(/\n/g, ' ');
-      throw new Error(`JSON parse error: ${(parseErr && parseErr.message) || parseErr}. Sample: ${sample}`);
-    }
-
-    // normalize & render
-    DATA = (Array.isArray(data) ? data : []).map(x => ({
-      title: x.title ?? x.paper_title ?? '',
-      authors: Array.isArray(x.authors) ? x.authors : (typeof x.authors==='string' ? x.authors.split(/\s*,\s*/) : []),
-      abstract: x.abstract ?? null,
-      pdf_url: x.pdf_url ?? x.pdf ?? null,
-      paper_url: x.paper_url ?? x.url ?? null,
-      venue: x.venue ?? x.conference ?? null,
-      year: x.year ?? null,
-    }));
-
-    buildIndex();
-    populateFilters();
-    document.getElementById('q').value = '';
-    document.getElementById('year').value = '';
-    document.getElementById('venue').value = '';
-    document.getElementById('sort').value = 'relevance';
+  elCSV.addEventListener('click', ()=> downloadCSV(VIEW));
+  elClear.addEventListener('click', ()=>{
+    elQ.value=''; elYear.value=''; elVenue.value=''; elSort.value='relevance';
     applyFilters();
+  });
 
-  } catch (e) {
-    const msg = (e && e.message) ? e.message : String(e);
-    console.error('[JSON load error]', msg);
-    warn.textContent = `Failed to load JSON: ${msg}`;
-    warn.style.display = 'block';
-    // Optional: also clear results so the UI reflects the error state
-    list.innerHTML = '';
-    document.getElementById('count').textContent = '0 results';
-  }
-}
-
-// events
-['q','year','venue','sort'].forEach(id=>{
-  document.getElementById(id).addEventListener('input', applyFilters);
-});
-
-document.getElementById('loadBtn').addEventListener('click', ()=>{
-  const url = document.getElementById('jsonUrl').value.trim() 
-         || '/assets/projects/papers-explorer/all_2025_papers.json?nocache=' + Date.now();
-  loadJson(url);
-});
-
-// Auto-boot: try a default filename in same directory
-window.addEventListener('DOMContentLoaded', ()=>{
-  const p = new URLSearchParams(location.search);
-  const url = p.get('data') || '/assets/projects/papers-explorer/all_2025_papers.json?nocache=' + Date.now();
-  document.getElementById('jsonUrl').value = url;
-  loadJson(url);
-});
-</script>
+  // ---------- Boot ----------
+  // Change this if your default JSON file lives elsewhere:
+  const DEFAULT_JSON = '/assets/projects/papers-explorer/all_2025_papers.json';
+  (function boot(){
+    const p = new URLSearchParams(location.search);
+    const url = p.get('data') || DEFAULT_JSON;
+    elJson.value = url;
+    loadJson(url + (url.includes('?') ? '&' : '?') + 'nocache=' + Date.now());
+  })();
+  </script>
 </body>
 </html>
