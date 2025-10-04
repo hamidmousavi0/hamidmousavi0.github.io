@@ -8,6 +8,6 @@ category: work
 related_posts: false
 ---
 
-<a class="btn btn-sm btn-primary" href="/assets/projects/papers-explorer/index.html? target="_blank" rel="noopener">
+<a class="btn btn-sm btn-primary" href="/assets/projects/papers-explorer/index.html? data= "" target="_blank" rel="noopener">
   Open Papers Explorer
 </a>
