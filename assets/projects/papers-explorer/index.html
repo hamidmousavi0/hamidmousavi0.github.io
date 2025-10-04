@@ -86,52 +86,51 @@
   <script>
   // ---------- Config ----------
   const MAX_ABSTRACT_CHARS = 140; // short abstract preview
+  const ASSET_BASE = '/assets/projects/papers-explorer/';
+  const MANIFEST_URL = ASSET_BASE + 'datasets.json'; // optional
+
+  // Fallback list (ensure your 5th item shows up)
+  const FALLBACK_DATASETS = [
+    { label: 'ICLR 2025',   path: ASSET_BASE + 'iclr_2025_papers.json' },
+    { label: 'NeurIPS 2025',path: ASSET_BASE + 'neurips_2025_papers.json' },
+    { label: 'CVPR 2025',   path: ASSET_BASE + 'cvpr_2025_papers.json' },
+    { label: 'AAAI 2025',   path: ASSET_BASE + 'aaai_2025_papers.json' },
+    { label: 'ICCV 2023',   path: ASSET_BASE + 'iccv_2023_papers.json' },
+  ];
 
   // ---------- Safe coercion helpers ----------
   function toStr(v){ if(v==null) return ""; if(Array.isArray(v)) return v.map(toStr).join(" "); if(typeof v==="object") return JSON.stringify(v); return String(v); }
   function toStrOrNull(v){ const s=toStr(v).trim(); return s?s:null; }
   function toAuthors(v){ if(Array.isArray(v)) return v.map(toStr).filter(Boolean); if(typeof v==="string") return v.split(/\s*,\s*/).filter(Boolean); return []; }
   function toYear(v){ const n=Number(String(v??"").trim()); return Number.isFinite(n)?n:null; }
-  function escapeHTML(s){ return toStr(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+  function escapeHTML(s){ return toStr(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&gt;','>':'&lt;','"':'&quot;',"'":'&#39;'}[m])); }
   function attr(s){ return escapeHTML(s); }
   function brief(s, n=MAX_ABSTRACT_CHARS){ s = toStr(s).trim(); if(!s) return null; return s.length>n ? (s.slice(0, n-1)+'…') : s; }
 
   // ---------- Highlight helpers ----------
-  function escRe(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+  function escRe(s){ return s.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\\\$&'); }
   function highlightHTML(text, needles){
     if(!text) return '';
-    // Sort by length desc so phrases highlight before single words
     const toks = [...needles].filter(Boolean).sort((a,b)=>b.length-a.length);
     let out = escapeHTML(text);
     for(const t of toks){
-      const re = new RegExp(`(${escRe(t)})`, 'gi');
+      const re = new RegExp(\`(\${escRe(t)})\`, 'gi');
       out = out.replace(re, '<mark>$1</mark>');
     }
     return out;
   }
 
-  // ---------- Query parsing ----------
-  // parse: split into phrases (inside quotes) and tokens (outside)
+  // ---------- Query parsing (phrases in quotes + tokens) ----------
   function parseQuery(qRaw){
     const q = toStr(qRaw).trim();
     if(!q) return {phrases:[], tokens:[]};
     const phrases = [];
     let rest = q.replace(/"([^"]+)"/g, (_,p)=>{ phrases.push(p.trim()); return ' '; });
-    const tokens = rest.split(/\s+/).filter(Boolean);
+    const tokens = rest.split(/\\s+/).filter(Boolean);
     return {phrases, tokens};
   }
 
   // ---------- State ----------
-  const ASSET_BASE = '/assets/projects/papers-explorer/';
-  const FALLBACK_DATASETS = [
-    { label: 'ICLR 2025', path: ASSET_BASE + 'iclr_2025_papers.json' },
-    { label: 'NeurIPS 2025', path: ASSET_BASE + 'neurips_2025_papers.json' },
-    { label: 'CVPR 2025', path: ASSET_BASE + 'cvpr_2025_papers.json' },
-    { label: 'AAAI 2025', path: ASSET_BASE + 'aaai_2025_papers.json' },
-    { label: 'ICCV 2023', path: ASSET_BASE + 'iccv_2023_papers.json' },
-  ];
-  const MANIFEST_URL = ASSET_BASE + 'datasets.json'; // optional
-
   let DATA = [];   // normalized
   let VIEW = [];   // filtered/sorted
   let INDEX = [];  // search bag (lowercased)
@@ -163,7 +162,7 @@
       paper_url: toStrOrNull(x.paper_url ?? x.url),
       venue: toStrOrNull(x.venue ?? x.conference),
       year: toYear(x.year),
-      code_url: toStrOrNull(x.code_url),       // NEW: show code if available
+      code_url: toStrOrNull(x.code_url), // show code if available
     }));
   }
 
@@ -227,21 +226,20 @@
       if (!t) continue;
       score += occurrences(bag, t);
       const title = toStr(DATA[idx].title).toLowerCase();
-      if (title.includes(t)) score += 2; // slight title boost
+      if (title.includes(t)) score += 2;
     }
     for(const p of phrases){
       if (!p) continue;
       const m = occurrences(bag, p);
-      score += m * 3;                     // heavier weight for phrase hits
+      score += m * 3;
       const title = toStr(DATA[idx].title).toLowerCase();
-      if (title.includes(p)) score += 4;  // bigger title boost for phrase
+      if (title.includes(p)) score += 4;
     }
     return score;
   }
 
   function passesQuery(idx, tokens, phrases){
     const bag = INDEX[idx];
-    // Require all tokens and all phrases to be present
     for(const t of tokens){ if(t && !bag.includes(t)) return false; }
     for(const p of phrases){ if(p && !bag.includes(p)) return false; }
     return true;
@@ -249,7 +247,7 @@
 
   function applyFilters(){
     const {phrases, tokens} = parseQuery(elQ.value);
-    const needles = [...phrases, ...tokens]; // for highlighting
+    const needles = [...phrases, ...tokens];
     const yr = toStr(elYear.value).trim();
     const vn = toStr(elVenue.value).trim().toLowerCase();
     const sort = elSort.value;
@@ -335,26 +333,34 @@
     }
   }
 
-  // ---------- Populate datasets ----------
+  // ---------- Populate datasets (MERGE manifest + fallback so all 5 show) ----------
   async function populateDatasets(){
+    let items = [];
     try{
       const res = await fetch(location.origin + MANIFEST_URL + '?nocache=' + Date.now(), {cache:'no-store'});
       if (res.ok){
         const arr = await res.json();
         if (Array.isArray(arr) && arr.length){
-          arr.forEach(it => {
-            const opt = document.createElement('option');
-            opt.value = it.path; opt.textContent = it.label || it.path;
-            elDataset.appendChild(opt);
-          });
-          return;
+          items = arr;
         }
       }
-    }catch(_){} // ignore manifest errors
+    }catch(_){}
 
-    FALLBACK_DATASETS.forEach(it => {
+    // Merge fallback with manifest (manifest wins on duplicates)
+    const byPath = new Map();
+    for (const it of items) if (it && it.path) byPath.set(it.path, it);
+    for (const f of FALLBACK_DATASETS) if (f && f.path && !byPath.has(f.path)) byPath.set(f.path, f);
+
+    // Optional: stable order by label
+    const merged = [...byPath.values()].sort((a,b)=>
+      String(a.label||a.path).localeCompare(String(b.label||b.path))
+    );
+
+    // Populate <select>
+    merged.forEach(it => {
       const opt = document.createElement('option');
-      opt.value = it.path; opt.textContent = it.label;
+      opt.value = it.path;
+      opt.textContent = it.label || it.path;
       elDataset.appendChild(opt);
     });
   }
@@ -391,9 +397,12 @@
       }
       elDataset.value = requested;
       loadDataset(requested);
-    } else if (elDataset.options.length > 1){
-      elDataset.selectedIndex = 1; // first real dataset
-      loadDataset(elDataset.value);
+    } else {
+      // If there is at least one real dataset, select the first one
+      if (elDataset.options.length > 1){
+        elDataset.selectedIndex = 1;
+        loadDataset(elDataset.value);
+      }
     }
   })();
   </script>
