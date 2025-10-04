@@ -68,12 +68,7 @@ ninja.data = [{
           section: "News",},{id: "news-my-presentation-for-the-diffusion-model-in-generative-ai-seminar-at-mdu-is-available-in-the-blog-diffusion-model",
           title: 'My presentation for the Diffusion model in Generative AI Seminar at MDU is...',
           description: "",
-          section: "News",},{id: "projects-all-conference-papers-explorer",
-          title: 'All-Conference Papers Explorer',
-          description: "Search NeurIPS, CVPR, ICML, ICLR, AAAI, and IJCAI papers from a single JSON.",
-          section: "Projects",handler: () => {
-              window.location.href = "/projects/papers-explorer/";
-            },},{
+          section: "News",},{
         id: 'social-email',
         title: 'email',
         section: 'Socials',
