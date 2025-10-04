@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Papers Search</title>
+  <style>
+    :root { --bg:#0b0b10; --panel:#11131a; --muted:#9aa0aa; --text:#e6e8ee; --accent:#5fd4ff; }
+    html,body { margin:0; padding:0; background:var(--bg); color:var(--text); font:16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, "Helvetica Neue", Arial; }
+    .wrap { max-width: 1000px; margin: 0 auto; padding: 28px 16px; }
+    h1 { margin: 0 0 6px; font-size: 28px; }
+    .muted { color: var(--muted); }
+    .row { display:flex; flex-wrap:wrap; gap:10px; margin:14px 0; }
+    .input, select { background: var(--panel); color: var(--text); border:1px solid #1e2230; border-radius:12px; padding:10px 12px; outline:0; }
+    .input { flex:1 1 280px; }
+    select { flex:0 0 140px; }
+    .btn { background: var(--accent); color: #041015; border:0; border-radius:12px; padding:10px 14px; cursor:pointer; font-weight:600; }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top:16px; }
+    @media (min-width: 720px) { .grid { grid-template-columns: 1fr 1fr; } }
+    .card { background: var(--panel); border:1px solid #1e2230; border-radius:14px; padding:14px; }
+    .title { font-weight:700; margin:0 0 6px; font-size: 16px; }
+    .meta { font-size: 12px; color: var(--muted); display:flex; gap:10px; flex-wrap:wrap; }
+    .authors { margin-top:6px; font-size: 14px; color:#cfd3da }
+    .abstract { margin-top:8px; font-size: 13px; color:#c6cad4; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:4; overflow:hidden; }
+    .links { margin-top:10px; display:flex; gap:10px; }
+    .links a { color: var(--accent); text-decoration:none; }
+    .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .pill { font-size: 12px; color: var(--muted); padding:4px 8px; border:1px solid #1e2230; border-radius:999px; }
+    .count { margin-left:auto; font-size: 13px; color: var(--muted); }
+    .small { font-size:12px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Papers Search</h1>
+    <div class="muted small">Static search UI for your JSON (works on GitHub Pages). Drop your JSON next to this file and set its path below.</div>
+
+    <div class="row">
+      <input id="jsonUrl" class="input" placeholder="JSON URL (e.g. all_2025_papers.json)" />
+      <button class="btn" id="loadBtn">Load</button>
+    </div>
+
+    <div class="row toolbar">
+      <input id="q" class="input" placeholder="Search title, author, venue…" />
+      <select id="year">
+        <option value="">All years</option>
+      </select>
+      <select id="venue">
+        <option value="">All venues</option>
+      </select>
+      <select id="sort">
+        <option value="relevance">Sort: Relevance</option>
+        <option value="year_desc">Sort: Year ↓</option>
+        <option value="year_asc">Sort: Year ↑</option>
+        <option value="title_asc">Sort: Title A→Z</option>
+      </select>
+      <span class="count" id="count">0 results</span>
+    </div>
+
+    <div id="warning" class="muted small" style="display:none;margin-top:8px"></div>
+
+    <div class="grid" id="list"></div>
+  </div>
+
+<script>
+// --- tiny utility helpers ---
+const norm = (s) => (s||"").toString().normalize("NFKD").replace(/[\u0300-\u036f]/g,"").trim().toLowerCase();
+const uniq = (arr) => Array.from(new Set(arr.filter(Boolean)));
+const by = (f) => (a,b)=> (f(a)>f(b)?1:(f(a)<f(b)?-1:0));
+
+let DATA = [];
+let INDEX = []; // lightweight tokens per item for relevance scoring
+
+function buildIndex() {
+  INDEX = DATA.map((r) => {
+    const t = [r.title, (r.authors||[]).join(" "), r.venue, r.year].map(x=> (x??"").toString()).join(" ");
+    return norm(t);
+  });
+}
+
+function populateFilters() {
+  const years = uniq(DATA.map(r => r.year).filter(Boolean)).sort();
+  const venues = uniq(DATA.map(r => r.venue).filter(Boolean)).sort();
+  const ySel = document.getElementById('year');
+  const vSel = document.getElementById('venue');
+  ySel.innerHTML = '<option value="">All years</option>' + years.map(y=>`<option value="${y}">${y}</option>`).join('');
+  vSel.innerHTML = '<option value="">All venues</option>' + venues.map(v=>`<option value="${v}">${v}</option>`).join('');
+}
+
+function relevanceScore(q, idxText) {
+  if (!q) return 0;
+  const terms = norm(q).split(/\s+/).filter(Boolean);
+  let score = 0;
+  for (const term of terms) {
+    // presence (+), title/author/venue are already in idx
+    if (idxText.includes(term)) score += 1;
+    // boost exact phrase
+    if (idxText.includes(' '+term+' ')) score += 0.3;
+  }
+  return score;
+}
+
+function render(list) {
+  const el = document.getElementById('list');
+  const count = document.getElementById('count');
+  count.textContent = `${list.length} results`;
+  el.innerHTML = list.map((p) => {
+    const a = (p.authors||[]).join(', ');
+    const abs = p.abstract ? `<div class="abstract">${escapeHtml(p.abstract)}</div>` : '';
+    const pdf = p.pdf_url ? `<a href="${p.pdf_url}" target="_blank" rel="noopener">PDF</a>` : '';
+    const src = p.paper_url ? `<a href="${p.paper_url}" target="_blank" rel="noopener">Page</a>` : '';
+    return `<div class="card">
+      <div class="title">${escapeHtml(p.title||'')}</div>
+      <div class="meta">${p.year?escapeHtml(p.year):''}${p.venue?` · ${escapeHtml(p.venue)}`:''}</div>
+      ${a?`<div class="authors">${escapeHtml(a)}</div>`:''}
+      ${abs}
+      <div class="links">${pdf} ${src}</div>
+    </div>`;
+  }).join('');
+}
+
+function escapeHtml(s){return (s||"").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[c]);}
+
+function applyFilters() {
+  const q = document.getElementById('q').value;
+  const year = document.getElementById('year').value;
+  const venue = document.getElementById('venue').value;
+  const sort = document.getElementById('sort').value;
+
+  let rows = DATA.map((r,i)=>({r,i,score: relevanceScore(q, INDEX[i])}));
+
+  // filter by query presence if any term
+  if (q.trim()) rows = rows.filter(x => x.score > 0);
+  if (year) rows = rows.filter(x => String(x.r.year) === String(year));
+  if (venue) rows = rows.filter(x => x.r.venue === venue);
+
+  // sort
+  if (sort === 'relevance') {
+    rows.sort((a,b)=> b.score - a.score);
+  } else if (sort === 'year_desc') {
+    rows.sort((a,b)=> (b.r.year||0)-(a.r.year||0));
+  } else if (sort === 'year_asc') {
+    rows.sort((a,b)=> (a.r.year||0)-(b.r.year||0));
+  } else if (sort === 'title_asc') {
+    rows.sort(by(x=> (x.r.title||'').toLowerCase()));
+  }
+
+  render(rows.map(x=>x.r));
+}
+
+async function loadJson(url) {
+  const warn = document.getElementById('warning');
+  warn.style.display = 'none';
+  try {
+    const res = await fetch(url, {cache:'no-store'});
+    if (!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
+    // Normalize keys from your scrapers
+    DATA = (Array.isArray(data)? data : []).map(x=>({
+      title: x.title ?? x.paper_title ?? '',
+      authors: Array.isArray(x.authors) ? x.authors : (typeof x.authors==='string'? x.authors.split(/\s*,\s*/): []),
+      abstract: x.abstract ?? null,
+      pdf_url: x.pdf_url ?? x.pdf ?? null,
+      paper_url: x.paper_url ?? x.url ?? null,
+      venue: x.venue ?? x.conference ?? null,
+      year: x.year ?? null,
+    }));
+    buildIndex();
+    populateFilters();
+    document.getElementById('q').value='';
+    document.getElementById('year').value='';
+    document.getElementById('venue').value='';
+    document.getElementById('sort').value='relevance';
+    applyFilters();
+  } catch (e) {
+    warn.textContent = 'Failed to load JSON. Make sure the file path is correct and this page is served from the same origin (GitHub Pages).';
+    warn.style.display = 'block';
+  }
+}
+
+// events
+['q','year','venue','sort'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', applyFilters);
+});
+
+document.getElementById('loadBtn').addEventListener('click', ()=>{
+  const url = document.getElementById('jsonUrl').value.trim() || 'all_2025_papers.json';
+  loadJson(url);
+});
+
+// Auto-boot: try a default filename in same directory
+window.addEventListener('DOMContentLoaded', ()=>{
+  const p = new URLSearchParams(location.search);
+  const url = p.get('data') || 'all_2025_papers.json';
+  document.getElementById('jsonUrl').value = url;
+  loadJson(url);
+});
+</script>
+</body>
+</html>
