@@ -184,7 +184,7 @@ async function loadJson(url) {
 });
 
 document.getElementById('loadBtn').addEventListener('click', ()=>{
-  const url = document.getElementById('jsonUrl').value.trim() || 'all_2025_papers.json';
+  const url = p.get('data') || '/assets/projects/papers-explorer/all_2025_papers.json';
   loadJson(url);
 });
 
