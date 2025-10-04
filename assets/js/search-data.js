@@ -70,7 +70,7 @@ ninja.data = [{
           description: "",
           section: "News",},{id: "projects-all-conference-papers-explorer",
           title: 'All-Conference Papers Explorer',
-          description: "Search NeurIPS, CVPR, ICML, ICLR, AAAI, and IJCAI papers from a single JSON.",
+          description: "Search NeurIPS, CVPR, ICML, ICLR, AAAI, and IJCAI papers.",
           section: "Projects",handler: () => {
               window.location.href = "/projects/papers-explorer/";
             },},{
