@@ -5,7 +5,15 @@
   <title>Papers Explorer</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
-    :root{--bg:#0b0d10;--panel:#12141a;--muted:#9aa3af;--ink:#e5e7eb;--accent:#60a5fa}
+    :root{
+      --bg:#0b0d10;
+      --panel:#12141a;
+      --muted:#9aa3af;
+      --ink:#e5e7eb;
+      --accent:#60a5fa;   /* controls buttons/links */
+      --title:#a5b4fc;    /* title color (indigo-300) */
+      --authors:#22d3ee;  /* authors color (cyan-400) */
+    }
     *{box-sizing:border-box}
     body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
     a{color:var(--accent);text-decoration:none}
@@ -22,9 +30,9 @@
     .warning{display:none;margin-top:12px;padding:10px 12px;border:1px solid #ef4444;background:#2a1212;color:#fecaca;border-radius:10px;white-space:pre-wrap}
     .list{margin-top:16px;display:grid;grid-template-columns:1fr;gap:10px}
     .card{background:var(--panel);border:1px solid #2a2f3a;border-radius:14px;padding:14px}
-    .title{font-size:16px;font-weight:700;margin:0 0 6px}
+    .title{font-size:16px;font-weight:800;margin:0 0 6px;color:var(--title)}
     .meta{font-size:12px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap}
-    .authors{margin-top:6px;color:#cbd5e1}
+    .authors{margin-top:6px;color:var(--authors);font-weight:600}
     .abs{margin-top:8px;color:#d1d5db}
     .links{margin-top:8px;display:flex;gap:12px;flex-wrap:wrap}
     .pill{display:inline-flex;gap:8px;align-items:center}
@@ -69,6 +77,9 @@
   </div>
 
   <script>
+  // ---------- Config for abstract length ----------
+  const MAX_ABSTRACT_CHARS = 140; // tweak this to show more/less
+
   // ---------- Safe coercion helpers ----------
   function toStr(v){ if(v==null) return ""; if(Array.isArray(v)) return v.map(toStr).join(" "); if(typeof v==="object") return JSON.stringify(v); return String(v); }
   function toStrOrNull(v){ const s=toStr(v).trim(); return s?s:null; }
@@ -76,6 +87,7 @@
   function toYear(v){ const n=Number(String(v??"").trim()); return Number.isFinite(n)?n:null; }
   function escapeHTML(s){ return toStr(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
   function attr(s){ return escapeHTML(s); }
+  function brief(s, n=MAX_ABSTRACT_CHARS){ s = toStr(s).trim(); if(!s) return null; return s.length>n ? (s.slice(0, n-1)+'…') : s; }
 
   // ---------- State ----------
   const ASSET_BASE = '/assets/projects/papers-explorer/';
@@ -85,7 +97,7 @@
     { label: 'NeurIPS 2025', path: ASSET_BASE + 'neurips_2025_papers.json' },
     { label: 'CVPR 2025', path: ASSET_BASE + 'cvpr_2025_papers.json' },
   ];
-  const MANIFEST_URL = ASSET_BASE + 'datasets.json'; // optional (see example below)
+  const MANIFEST_URL = ASSET_BASE + 'datasets.json'; // optional
 
   let DATA = [];   // normalized
   let VIEW = [];   // filtered/sorted
@@ -135,7 +147,7 @@
           ${r.venue ? `<span>• ${escapeHTML(r.venue)}</span>` : ''}
         </div>
         ${r.authors?.length ? `<div class="authors">${escapeHTML(r.authors.join(', '))}</div>` : ''}
-        ${r.abstract ? `<div class="abs">${escapeHTML(r.abstract)}</div>` : ''}
+        ${r.abstract ? `<div class="abs">${escapeHTML(brief(r.abstract))}</div>` : ''}
         <div class="links">
           ${r.pdf_url ? `<a href="${attr(r.pdf_url)}" target="_blank" rel="noopener">PDF</a>` : ''}
           ${r.paper_url ? `<a href="${attr(r.paper_url)}" target="_blank" rel="noopener">Source</a>` : ''}
@@ -258,7 +270,6 @@
 
   // ---------- Populate datasets ----------
   async function populateDatasets(){
-    // Try optional manifest first
     try{
       const res = await fetch(location.origin + MANIFEST_URL + '?nocache=' + Date.now(), {cache:'no-store'});
       if (res.ok){
@@ -274,7 +285,6 @@
       }
     }catch(_){} // ignore manifest errors
 
-    // Fallback to hardcoded list
     FALLBACK_DATASETS.forEach(it => {
       const opt = document.createElement('option');
       opt.value = it.path; opt.textContent = it.label;
@@ -301,12 +311,9 @@
   // ---------- Boot ----------
   (async function boot(){
     await populateDatasets();
-
-    // If ?data=/path.json present, select it; else select first option
     const p = new URLSearchParams(location.search);
     const requested = p.get('data');
     if (requested){
-      // add as a temporary option if not present
       let opt = Array.from(elDataset.options).find(o => o.value === requested);
       if (!opt){
         opt = document.createElement('option');
