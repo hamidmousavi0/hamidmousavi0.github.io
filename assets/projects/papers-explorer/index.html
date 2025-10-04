@@ -184,14 +184,14 @@ async function loadJson(url) {
 });
 
 document.getElementById('loadBtn').addEventListener('click', ()=>{
-  const url = p.get('data') || '/assets/projects/papers-explorer/all_2025_papers.json';
+  const url = document.getElementById('jsonUrl').value.trim() || '/assets/projects/papers-explorer/all_2025_papers.json';
   loadJson(url);
 });
 
 // Auto-boot: try a default filename in same directory
 window.addEventListener('DOMContentLoaded', ()=>{
   const p = new URLSearchParams(location.search);
-  const url = p.get('data') || 'all_2025_papers.json';
+  const url = p.get('data') || '/assets/projects/papers-explorer/all_2025_papers.json';
   document.getElementById('jsonUrl').value = url;
   loadJson(url);
 });
