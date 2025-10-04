@@ -22,12 +22,8 @@
     a:hover{text-decoration:underline}
     .wrap{max-width:1100px;margin:0 auto;padding:24px}
     h1{font-size:24px;margin:0 0 12px}
-    /* Top row */
     .toolbar{display:grid;grid-template-columns:1fr 140px 220px 160px auto;gap:8px;align-items:center}
-    /* Advanced row */
-    .advanced{display:grid;grid-template-columns:1fr 120px 1fr 120px;gap:8px;align-items:center;margin-top:8px}
-    .toolbar input,.toolbar select,.toolbar button,
-    .advanced input,.advanced select,.advanced button{
+    .toolbar input,.toolbar select,.toolbar button{
       background:#1a1e26;color:var(--ink);border:1px solid #2a2f3a;border-radius:10px;padding:10px 12px
     }
     .toolbar button{cursor:pointer;background:#2563eb;border-color:#2563eb}
@@ -50,7 +46,6 @@
     @media (max-width:980px){
       .toolbar{grid-template-columns:1fr 1fr}
       .toolbar .full{grid-column:1 / -1}
-      .advanced{grid-template-columns:1fr 100px 1fr 100px}
     }
   </style>
 </head>
@@ -75,7 +70,7 @@
       <button id="btnClear" class="secondary">Clear</button>
 
       <div class="full bar">
-        <input id="q" class="full" type="search" placeholder="Search title / author / abstract…" style="flex:1 1 420px; min-width:280px" />
+        <input id="q" class="full" type="search" placeholder='Search (use quotes for exact phrase, e.g. "graph transformer")' style="flex:1 1 420px; min-width:280px" />
         <span id="count" class="count">0 results</span>
         <span id="sources"></span>
         <span id="loading" class="pill">Loading<span class="spinner" id="spin"></span></span>
@@ -84,21 +79,13 @@
       </div>
     </div>
 
-    <!-- Advanced exact filters -->
-    <div class="advanced">
-      <input id="titleFilter" type="search" placeholder="Title filter…">
-      <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="titleExact"> Exact</label>
-      <input id="authorFilter" type="search" placeholder="Author filter…">
-      <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="authorExact"> Exact</label>
-    </div>
-
     <div id="warning" class="warning"></div>
     <div id="list" class="list"></div>
   </div>
 
   <script>
   // ---------- Config ----------
-  const MAX_ABSTRACT_CHARS = 140;
+  const MAX_ABSTRACT_CHARS = 140; // short abstract preview
 
   // ---------- Safe coercion helpers ----------
   function toStr(v){ if(v==null) return ""; if(Array.isArray(v)) return v.map(toStr).join(" "); if(typeof v==="object") return JSON.stringify(v); return String(v); }
@@ -111,14 +98,27 @@
 
   // ---------- Highlight helpers ----------
   function escRe(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
-  function highlightHTML(text, tokens){
-    let out = escapeHTML(text ?? '');
-    for(const t of tokens){
-      if(!t) continue;
+  function highlightHTML(text, needles){
+    if(!text) return '';
+    // Sort by length desc so phrases highlight before single words
+    const toks = [...needles].filter(Boolean).sort((a,b)=>b.length-a.length);
+    let out = escapeHTML(text);
+    for(const t of toks){
       const re = new RegExp(`(${escRe(t)})`, 'gi');
       out = out.replace(re, '<mark>$1</mark>');
     }
     return out;
+  }
+
+  // ---------- Query parsing ----------
+  // parse: split into phrases (inside quotes) and tokens (outside)
+  function parseQuery(qRaw){
+    const q = toStr(qRaw).trim();
+    if(!q) return {phrases:[], tokens:[]};
+    const phrases = [];
+    let rest = q.replace(/"([^"]+)"/g, (_,p)=>{ phrases.push(p.trim()); return ' '; });
+    const tokens = rest.split(/\s+/).filter(Boolean);
+    return {phrases, tokens};
   }
 
   // ---------- State ----------
@@ -130,7 +130,7 @@
 
   let DATA = [];   // normalized
   let VIEW = [];   // filtered/sorted
-  let INDEX = [];  // search bag
+  let INDEX = [];  // search bag (lowercased)
 
   // ---------- UI ----------
   const elDataset = document.getElementById('dataset');
@@ -146,10 +146,6 @@
   const elCSV = document.getElementById('btnCSV');
   const elLoading = document.getElementById('loading');
   const elSpin = document.getElementById('spin');
-  const elTitleFilter = document.getElementById('titleFilter');
-  const elTitleExact = document.getElementById('titleExact');
-  const elAuthorFilter = document.getElementById('authorFilter');
-  const elAuthorExact = document.getElementById('authorExact');
 
   function setLoading(on){ elLoading.style.display = on ? 'inline-flex' : 'none'; elSpin.style.display = on ? 'inline-block' : 'none'; }
 
@@ -163,21 +159,23 @@
       paper_url: toStrOrNull(x.paper_url ?? x.url),
       venue: toStrOrNull(x.venue ?? x.conference),
       year: toYear(x.year),
+      code_url: toStrOrNull(x.code_url),       // NEW: show code if available
     }));
   }
 
   // ---------- Render ----------
-  function renderList(rows, tokens=[]){
+  function renderList(rows, highlightNeedles=[]){
     elList.innerHTML = '';
     const frag = document.createDocumentFragment();
     for(const r of rows){
       const art = document.createElement('article');
       art.className = 'card';
-      const titleHTML   = tokens.length ? highlightHTML(r.title || '(Untitled)', tokens) : escapeHTML(r.title || '(Untitled)');
+
+      const titleHTML   = highlightNeedles.length ? highlightHTML(r.title || '(Untitled)', highlightNeedles) : escapeHTML(r.title || '(Untitled)');
       const authorsText = (r.authors||[]).join(', ');
-      const authorsHTML = tokens.length ? highlightHTML(authorsText, tokens) : escapeHTML(authorsText);
+      const authorsHTML = highlightNeedles.length ? highlightHTML(authorsText, highlightNeedles) : escapeHTML(authorsText);
       const absText     = brief(r.abstract);
-      const absHTML     = absText ? (tokens.length ? highlightHTML(absText, tokens) : escapeHTML(absText)) : '';
+      const absHTML     = absText ? (highlightNeedles.length ? highlightHTML(absText, highlightNeedles) : escapeHTML(absText)) : '';
 
       art.innerHTML = `
         <div class="title">${titleHTML}</div>
@@ -190,6 +188,7 @@
         <div class="links">
           ${r.pdf_url ? `<a href="${attr(r.pdf_url)}" target="_blank" rel="noopener">PDF</a>` : ''}
           ${r.paper_url ? `<a href="${attr(r.paper_url)}" target="_blank" rel="noopener">Source</a>` : ''}
+          ${r.code_url ? `<a href="${attr(r.code_url)}" target="_blank" rel="noopener">Code</a>` : ''}
         </div>`;
       frag.appendChild(art);
     }
@@ -206,61 +205,60 @@
     elSources.textContent = venues.length ? `Venues: ${venues.join(' · ')}` : '';
   }
 
-  function scoreRow(idx, qTokens){
-    if (!qTokens.length) return 0;
+  function occurrences(hay, needle){
+    if(!needle) return 0;
+    let c=0, pos=0;
+    while(true){
+      const i = hay.indexOf(needle, pos);
+      if(i === -1) break;
+      c++; pos = i + needle.length;
+    }
+    return c;
+  }
+
+  function scoreRow(idx, tokens, phrases){
     const bag = INDEX[idx];
     let score = 0;
-    for(const t of qTokens){
+    for(const t of tokens){
       if (!t) continue;
-      const m = bag.split(t).length - 1;
-      score += m;
+      score += occurrences(bag, t);
       const title = toStr(DATA[idx].title).toLowerCase();
-      if (title.includes(t)) score += 2;
+      if (title.includes(t)) score += 2; // slight title boost
+    }
+    for(const p of phrases){
+      if (!p) continue;
+      const m = occurrences(bag, p);
+      score += m * 3;                     // heavier weight for phrase hits
+      const title = toStr(DATA[idx].title).toLowerCase();
+      if (title.includes(p)) score += 4;  // bigger title boost for phrase
     }
     return score;
   }
 
-  function matchesTitle(r, text, exact){
-    if(!text) return true;
-    const t = toStr(r.title).toLowerCase();
-    const q = toStr(text).toLowerCase().trim();
-    return exact ? (t === q) : t.includes(q);
-  }
-
-  function matchesAuthor(r, text, exact){
-    if(!text) return true;
-    const q = toStr(text).toLowerCase().trim();
-    const authors = (r.authors || []).map(a => toStr(a).toLowerCase().trim()).filter(Boolean);
-    if (!authors.length) return false;
-    if (exact) return authors.some(a => a === q);
-    // substring match against any author
-    return authors.some(a => a.includes(q));
+  function passesQuery(idx, tokens, phrases){
+    const bag = INDEX[idx];
+    // Require all tokens and all phrases to be present
+    for(const t of tokens){ if(t && !bag.includes(t)) return false; }
+    for(const p of phrases){ if(p && !bag.includes(p)) return false; }
+    return true;
   }
 
   function applyFilters(){
-    const q = toStr(elQ.value).trim().toLowerCase();
+    const {phrases, tokens} = parseQuery(elQ.value);
+    const needles = [...phrases, ...tokens]; // for highlighting
     const yr = toStr(elYear.value).trim();
     const vn = toStr(elVenue.value).trim().toLowerCase();
     const sort = elSort.value;
-    const qTokens = q ? q.split(/\s+/).filter(Boolean) : [];
-
-    const titleText = elTitleFilter.value || '';
-    const titleExact = elTitleExact.checked;
-    const authorText = elAuthorFilter.value || '';
-    const authorExact = elAuthorExact.checked;
 
     let rows = [];
     for (let i=0;i<DATA.length;i++){
       const r = DATA[i];
       if (yr && String(r.year) !== yr) continue;
       if (vn && !toStr(r.venue).toLowerCase().includes(vn)) continue;
-      if (!matchesTitle(r, titleText, titleExact)) continue;
-      if (!matchesAuthor(r, authorText, authorExact)) continue;
 
-      if (qTokens.length){
-        const s = scoreRow(i, qTokens);
-        if (s <= 0) continue;
-        rows.push({row:r, s});
+      if (phrases.length || tokens.length){
+        if (!passesQuery(i, tokens.map(s=>s.toLowerCase()), phrases.map(s=>s.toLowerCase()))) continue;
+        rows.push({row:r, s:scoreRow(i, tokens.map(s=>s.toLowerCase()), phrases.map(s=>s.toLowerCase()))});
       } else {
         rows.push({row:r, s:0});
       }
@@ -277,13 +275,12 @@
     }
 
     VIEW = rows.map(x=>x.row);
-    // We highlight only free-text tokens (q). Exact filters are not highlighted to avoid confusion.
-    renderList(VIEW, qTokens);
+    renderList(VIEW, needles);
   }
 
   // ---------- CSV ----------
   function downloadCSV(rows){
-    const header = ["title","year","venue","authors","pdf_url","paper_url","abstract"];
+    const header = ["title","year","venue","authors","pdf_url","paper_url","code_url","abstract"];
     const lines = [header.join(",")];
     for (const r of rows){
       const vals = [
@@ -293,6 +290,7 @@
         toStr((r.authors||[]).join("; ")),
         toStr(r.pdf_url),
         toStr(r.paper_url),
+        toStr(r.code_url || ""),
         toStr(r.abstract)
       ].map(s => `"${toStr(s).replace(/"/g,'""')}"`);
       lines.push(vals.join(","));
@@ -320,10 +318,7 @@
       }
       DATA = normalizeArray(data);
       buildIndex();
-      // Reset filters
       elQ.value=''; elYear.value=''; elVenue.value=''; elSort.value='relevance';
-      elTitleFilter.value=''; elTitleExact.checked=false;
-      elAuthorFilter.value=''; elAuthorExact.checked=false;
       applyFilters();
     }catch(e){
       const msg = (e && e.message) ? e.message : String(e);
@@ -366,8 +361,6 @@
   document.getElementById('btnCSV').addEventListener('click', ()=> downloadCSV(VIEW.length ? VIEW : DATA));
   document.getElementById('btnClear').addEventListener('click', ()=>{
     elQ.value=''; elYear.value=''; elVenue.value=''; elSort.value='relevance';
-    elTitleFilter.value=''; elTitleExact.checked=false;
-    elAuthorFilter.value=''; elAuthorExact.checked=false;
     applyFilters();
   });
 
@@ -375,10 +368,6 @@
   elYear.addEventListener('change', applyFilters);
   elVenue.addEventListener('input', debounce(applyFilters, 120));
   elSort.addEventListener('change', applyFilters);
-  elTitleFilter.addEventListener('input', debounce(applyFilters, 120));
-  elTitleExact.addEventListener('change', applyFilters);
-  elAuthorFilter.addEventListener('input', debounce(applyFilters, 120));
-  elAuthorExact.addEventListener('change', applyFilters);
 
   elDataset.addEventListener('change', () => {
     const path = elDataset.value;
