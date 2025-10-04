@@ -152,18 +152,13 @@ async function loadJson(url) {
   const warn = document.getElementById('warning');
   warn.style.display = 'none';
   try {
-    const res = await fetch(url, { cache: 'no-store' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const res = await fetch(url, {cache:'no-store'});
+    if (!res.ok) throw new Error('HTTP '+res.status);
     const data = await res.json();
-
-    // ✅ clear any previous error
-    warn.textContent = '';
-    warn.style.display = 'none';
-
-    // normalize & render...
-    DATA = (Array.isArray(data) ? data : []).map(x => ({
+    // Normalize keys from your scrapers
+    DATA = (Array.isArray(data)? data : []).map(x=>({
       title: x.title ?? x.paper_title ?? '',
-      authors: Array.isArray(x.authors) ? x.authors : (typeof x.authors==='string' ? x.authors.split(/\s*,\s*/) : []),
+      authors: Array.isArray(x.authors) ? x.authors : (typeof x.authors==='string'? x.authors.split(/\s*,\s*/): []),
       abstract: x.abstract ?? null,
       pdf_url: x.pdf_url ?? x.pdf ?? null,
       paper_url: x.paper_url ?? x.url ?? null,
@@ -172,10 +167,10 @@ async function loadJson(url) {
     }));
     buildIndex();
     populateFilters();
-    document.getElementById('q').value = '';
-    document.getElementById('year').value = '';
-    document.getElementById('venue').value = '';
-    document.getElementById('sort').value = 'relevance';
+    document.getElementById('q').value='';
+    document.getElementById('year').value='';
+    document.getElementById('venue').value='';
+    document.getElementById('sort').value='relevance';
     applyFilters();
   } catch (e) {
     warn.textContent = 'Failed to load JSON. Make sure the file path is correct and this page is served from the same origin (GitHub Pages).';
