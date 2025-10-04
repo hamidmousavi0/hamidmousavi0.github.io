@@ -150,31 +150,60 @@ function applyFilters() {
 
 async function loadJson(url) {
   const warn = document.getElementById('warning');
+  const list = document.getElementById('list');
+  const absUrl = url.startsWith('http')
+      ? url
+      : (location.origin + (url.startsWith('/') ? url : '/' + url));
+
+  // always clear previous error
+  warn.textContent = '';
   warn.style.display = 'none';
+
   try {
-    const res = await fetch(url, {cache:'no-store'});
-    if (!res.ok) throw new Error('HTTP '+res.status);
-    const data = await res.json();
-    // Normalize keys from your scrapers
-    DATA = (Array.isArray(data)? data : []).map(x=>({
+    const res = await fetch(absUrl, { cache: 'no-store' });
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status} on ${absUrl}`);
+    }
+
+    // Try parse as JSON; surface parse errors with the first 200 chars of the file
+    let data;
+    try {
+      data = await res.json();
+    } catch (parseErr) {
+      // Fetch the raw text to help debug malformed JSON
+      const raw = await (await fetch(absUrl, { cache: 'no-store' })).text();
+      const sample = raw.slice(0, 200).replace(/\n/g, ' ');
+      throw new Error(`JSON parse error: ${(parseErr && parseErr.message) || parseErr}. Sample: ${sample}`);
+    }
+
+    // normalize & render
+    DATA = (Array.isArray(data) ? data : []).map(x => ({
       title: x.title ?? x.paper_title ?? '',
-      authors: Array.isArray(x.authors) ? x.authors : (typeof x.authors==='string'? x.authors.split(/\s*,\s*/): []),
+      authors: Array.isArray(x.authors) ? x.authors : (typeof x.authors==='string' ? x.authors.split(/\s*,\s*/) : []),
       abstract: x.abstract ?? null,
       pdf_url: x.pdf_url ?? x.pdf ?? null,
       paper_url: x.paper_url ?? x.url ?? null,
       venue: x.venue ?? x.conference ?? null,
       year: x.year ?? null,
     }));
+
     buildIndex();
     populateFilters();
-    document.getElementById('q').value='';
-    document.getElementById('year').value='';
-    document.getElementById('venue').value='';
-    document.getElementById('sort').value='relevance';
+    document.getElementById('q').value = '';
+    document.getElementById('year').value = '';
+    document.getElementById('venue').value = '';
+    document.getElementById('sort').value = 'relevance';
     applyFilters();
+
   } catch (e) {
-    warn.textContent = 'Failed to load JSON. Make sure the file path is correct and this page is served from the same origin (GitHub Pages).';
+    const msg = (e && e.message) ? e.message : String(e);
+    console.error('[JSON load error]', msg);
+    warn.textContent = `Failed to load JSON: ${msg}`;
     warn.style.display = 'block';
+    // Optional: also clear results so the UI reflects the error state
+    list.innerHTML = '';
+    document.getElementById('count').textContent = '0 results';
   }
 }
 
@@ -184,14 +213,15 @@ async function loadJson(url) {
 });
 
 document.getElementById('loadBtn').addEventListener('click', ()=>{
-  const url = document.getElementById('jsonUrl').value.trim() || '/assets/projects/papers-explorer/all_2025_papers.json';
+  const url = document.getElementById('jsonUrl').value.trim() 
+         || '/assets/projects/papers-explorer/all_2025_papers.json?nocache=' + Date.now();
   loadJson(url);
 });
 
 // Auto-boot: try a default filename in same directory
 window.addEventListener('DOMContentLoaded', ()=>{
   const p = new URLSearchParams(location.search);
-  const url = p.get('data') || '/assets/projects/papers-explorer/all_2025_papers.json';
+  const url = p.get('data') || '/assets/projects/papers-explorer/all_2025_papers.json?nocache=' + Date.now();
   document.getElementById('jsonUrl').value = url;
   loadJson(url);
 });
