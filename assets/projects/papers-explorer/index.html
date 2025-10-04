@@ -53,7 +53,6 @@
   <div class="wrap">
     <h1>Papers Explorer</h1>
 
-    <!-- Top row -->
     <div class="toolbar">
       <select id="dataset">
         <option value="">Select Conference…</option>
@@ -85,55 +84,71 @@
 
   <script>
   // ---------- Config ----------
-  const MAX_ABSTRACT_CHARS = 140; // short abstract preview
-  const ASSET_BASE = '/assets/projects/papers-explorer/';
-  const MANIFEST_URL = ASSET_BASE + 'datasets.json'; // optional
+  const MAX_ABSTRACT_CHARS = 140;
 
-  // Fallback list (ensure your 5th item shows up)
+  // If you host assets beside this HTML, this relative base is safest:
+  const ASSET_BASE = './assets/projects/papers-explorer/';
+  const MANIFEST_URL = ASSET_BASE + 'datasets.json';
+
+  // Fallbacks (these will ALWAYS be injected so you always see choices)
   const FALLBACK_DATASETS = [
-    { label: 'ICLR 2025',   path: ASSET_BASE + 'iclr_2025_papers.json' },
-    { label: 'NeurIPS 2025',path: ASSET_BASE + 'neurips_2025_papers.json' },
-    { label: 'CVPR 2025',   path: ASSET_BASE + 'cvpr_2025_papers.json' },
-    { label: 'AAAI 2025',   path: ASSET_BASE + 'aaai_2025_papers.json' },
-    { label: 'ICCV 2023',   path: ASSET_BASE + 'iccv_2023_papers.json' },
+    { label: 'ICLR 2025',    path: ASSET_BASE + 'iclr_2025_papers.json' },
+    { label: 'NeurIPS 2025', path: ASSET_BASE + 'neurips_2025_papers.json' },
+    { label: 'CVPR 2025',    path: ASSET_BASE + 'cvpr_2025_papers.json' },
+    { label: 'AAAI 2025',    path: ASSET_BASE + 'aaai_2025_papers.json' },
+    { label: 'ICCV 2023',    path: ASSET_BASE + 'iccv_2023_papers.json' },
   ];
 
-  // ---------- Safe coercion helpers ----------
+  // ---------- Helpers ----------
   function toStr(v){ if(v==null) return ""; if(Array.isArray(v)) return v.map(toStr).join(" "); if(typeof v==="object") return JSON.stringify(v); return String(v); }
   function toStrOrNull(v){ const s=toStr(v).trim(); return s?s:null; }
   function toAuthors(v){ if(Array.isArray(v)) return v.map(toStr).filter(Boolean); if(typeof v==="string") return v.split(/\s*,\s*/).filter(Boolean); return []; }
   function toYear(v){ const n=Number(String(v??"").trim()); return Number.isFinite(n)?n:null; }
-  function escapeHTML(s){ return toStr(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&gt;','>':'&lt;','"':'&quot;',"'":'&#39;'}[m])); }
+  function escapeHTML(s){ return toStr(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
   function attr(s){ return escapeHTML(s); }
   function brief(s, n=MAX_ABSTRACT_CHARS){ s = toStr(s).trim(); if(!s) return null; return s.length>n ? (s.slice(0, n-1)+'…') : s; }
 
-  // ---------- Highlight helpers ----------
-  function escRe(s){ return s.replace(/[.*+?^${}()|[\\]\\\\]/g,'\\\\$&'); }
+  function escRe(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
   function highlightHTML(text, needles){
     if(!text) return '';
     const toks = [...needles].filter(Boolean).sort((a,b)=>b.length-a.length);
     let out = escapeHTML(text);
     for(const t of toks){
-      const re = new RegExp(\`(\${escRe(t)})\`, 'gi');
+      const re = new RegExp(`(${escRe(t)})`, 'gi');
       out = out.replace(re, '<mark>$1</mark>');
     }
     return out;
   }
 
-  // ---------- Query parsing (phrases in quotes + tokens) ----------
   function parseQuery(qRaw){
     const q = toStr(qRaw).trim();
     if(!q) return {phrases:[], tokens:[]};
     const phrases = [];
     let rest = q.replace(/"([^"]+)"/g, (_,p)=>{ phrases.push(p.trim()); return ' '; });
-    const tokens = rest.split(/\\s+/).filter(Boolean);
+    const tokens = rest.split(/\s+/).filter(Boolean);
     return {phrases, tokens};
   }
 
+  // Resolve a dataset path robustly (works with file:// too)
+  function resolveURL(path){
+    if (!path) return '';
+    // If already absolute (http/https), return as-is
+    if (/^https?:\/\//i.test(path)) return path;
+    // If starts with '/', use origin if available, else drop leading slash
+    if (path.startsWith('/')){
+      if (location.origin && location.origin !== 'null') return location.origin + path;
+      return path.replace(/^\//,''); // file:// safe
+    }
+    // Relative path — resolve against current page
+    const a = document.createElement('a');
+    a.href = path;
+    return a.href;
+  }
+
   // ---------- State ----------
-  let DATA = [];   // normalized
-  let VIEW = [];   // filtered/sorted
-  let INDEX = [];  // search bag (lowercased)
+  let DATA = [];
+  let VIEW = [];
+  let INDEX = [];
 
   // ---------- UI ----------
   const elDataset = document.getElementById('dataset');
@@ -162,7 +177,7 @@
       paper_url: toStrOrNull(x.paper_url ?? x.url),
       venue: toStrOrNull(x.venue ?? x.conference),
       year: toYear(x.year),
-      code_url: toStrOrNull(x.code_url), // show code if available
+      code_url: toStrOrNull(x.code_url),
     }));
   }
 
@@ -305,16 +320,17 @@
 
   // ---------- Load dataset ----------
   async function loadDataset(path){
-    const absUrl = location.origin + (path.startsWith('/') ? path : ('/'+path));
+    const absUrl = resolveURL(path);
     elWarn.style.display = 'none'; elWarn.textContent = ''; setLoading(true);
     try{
-      const res = await fetch(absUrl + (absUrl.includes('?') ? '&' : '?') + 'nocache=' + Date.now(), {cache:'no-store'});
+      const cacheBust = (absUrl.includes('?') ? '&' : '?') + 'nocache=' + Date.now();
+      const res = await fetch(absUrl + cacheBust);
       if (!res.ok) throw new Error(`HTTP ${res.status} on ${absUrl}`);
       let data;
       try{
         data = await res.json();
       }catch(parseErr){
-        const raw = await (await fetch(absUrl, {cache:'no-store'})).text();
+        const raw = await (await fetch(absUrl)).text();
         const sample = raw.slice(0,200).replace(/\n/g,' ');
         throw new Error(`JSON parse error: ${(parseErr && parseErr.message)||parseErr}. Sample: ${sample}`);
       }
@@ -333,36 +349,35 @@
     }
   }
 
-  // ---------- Populate datasets (MERGE manifest + fallback so all 5 show) ----------
+  // ---------- Populate datasets ----------
   async function populateDatasets(){
-    let items = [];
+    // 1) Always add fallbacks first so user sees options immediately
+    for (const it of FALLBACK_DATASETS){
+      const opt = document.createElement('option');
+      opt.value = it.path; opt.textContent = it.label || it.path;
+      elDataset.appendChild(opt);
+    }
+
+    // 2) Try to load manifest and append any new (non-duplicate) entries
     try{
-      const res = await fetch(location.origin + MANIFEST_URL + '?nocache=' + Date.now(), {cache:'no-store'});
+      const manifestUrl = resolveURL(MANIFEST_URL);
+      const res = await fetch(manifestUrl + (manifestUrl.includes('?')?'&':'?') + 'nocache=' + Date.now());
       if (res.ok){
         const arr = await res.json();
         if (Array.isArray(arr) && arr.length){
-          items = arr;
+          const existing = new Set(Array.from(elDataset.options).map(o=>o.value));
+          arr.forEach(it => {
+            if (it && it.path && !existing.has(it.path)){
+              const opt = document.createElement('option');
+              opt.value = it.path; opt.textContent = it.label || it.path;
+              elDataset.appendChild(opt);
+            }
+          });
         }
       }
-    }catch(_){}
-
-    // Merge fallback with manifest (manifest wins on duplicates)
-    const byPath = new Map();
-    for (const it of items) if (it && it.path) byPath.set(it.path, it);
-    for (const f of FALLBACK_DATASETS) if (f && f.path && !byPath.has(f.path)) byPath.set(f.path, f);
-
-    // Optional: stable order by label
-    const merged = [...byPath.values()].sort((a,b)=>
-      String(a.label||a.path).localeCompare(String(b.label||b.path))
-    );
-
-    // Populate <select>
-    merged.forEach(it => {
-      const opt = document.createElement('option');
-      opt.value = it.path;
-      opt.textContent = it.label || it.path;
-      elDataset.appendChild(opt);
-    });
+    }catch(err){
+      console.warn('[datasets.json] skipped:', err);
+    }
   }
 
   // ---------- Events ----------
@@ -387,22 +402,31 @@
   // ---------- Boot ----------
   (async function boot(){
     await populateDatasets();
+
+    // If URL ?data=... provided, honor it
     const p = new URLSearchParams(location.search);
     const requested = p.get('data');
+
     if (requested){
-      let opt = Array.from(elDataset.options).find(o => o.value === requested);
-      if (!opt){
-        opt = document.createElement('option');
-        opt.value = requested; opt.textContent = requested; elDataset.appendChild(opt);
+      // If not present, add it explicitly
+      if (!Array.from(elDataset.options).some(o => o.value === requested)){
+        const opt = document.createElement('option');
+        opt.value = requested; opt.textContent = requested;
+        elDataset.appendChild(opt);
       }
       elDataset.value = requested;
       loadDataset(requested);
+      return;
+    }
+
+    // Otherwise, auto-select the first real option if available
+    if (elDataset.options.length > 1){
+      elDataset.selectedIndex = 1;
+      loadDataset(elDataset.value);
     } else {
-      // If there is at least one real dataset, select the first one
-      if (elDataset.options.length > 1){
-        elDataset.selectedIndex = 1;
-        loadDataset(elDataset.value);
-      }
+      // No datasets? Tell the user.
+      elWarn.textContent = 'No datasets available. Check your ASSET_BASE path or provide datasets.json.';
+      elWarn.style.display = 'block';
     }
   })();
   </script>
