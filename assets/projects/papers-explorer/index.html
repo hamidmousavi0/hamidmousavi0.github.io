@@ -13,13 +13,13 @@
     .wrap{max-width:1100px;margin:0 auto;padding:24px}
     h1{font-size:24px;margin:0 0 12px}
     .toolbar{display:grid;grid-template-columns:1fr 120px 220px 160px auto;gap:8px;align-items:center}
-    .toolbar input,.toolbar select, .toolbar button{
+    .toolbar input,.toolbar select,.toolbar button{
       background:#1a1e26;color:var(--ink);border:1px solid #2a2f3a;border-radius:10px;padding:10px 12px
     }
     .toolbar button{cursor:pointer;background:#2563eb;border-color:#2563eb}
     .toolbar button.secondary{background:#1a1e26;border-color:#2a2f3a}
     .toolbar .full{grid-column:1 / -1}
-    .bar{display:flex;gap:10px;align-items:center;margin-top:10px;color:var(--muted)}
+    .bar{display:flex;gap:10px;align-items:center;margin-top:10px;color:var(--muted);flex-wrap:wrap}
     .count{font-weight:600;color:#cbd5e1}
     .warning{display:none;margin-top:12px;padding:10px 12px;border:1px solid #ef4444;background:#2a1212;color:#fecaca;border-radius:10px;white-space:pre-wrap}
     .list{margin-top:16px;display:grid;grid-template-columns:1fr;gap:10px}
@@ -32,6 +32,7 @@
     .pill{display:inline-flex;gap:8px;align-items:center}
     .footer{margin-top:24px;color:var(--muted)}
     .spinner{display:none;margin-left:8px;border:2px solid #2a2f3a;border-top:2px solid var(--accent);border-radius:50%;width:16px;height:16px;animation:spin 0.9s linear infinite}
+    #dropZone{margin-top:10px;padding:10px;border:1px dashed #2a2f3a;border-radius:10px;color:#9aa3af}
     @keyframes spin{to{transform:rotate(360deg)}}
     @media (max-width:860px){.toolbar{grid-template-columns:1fr 1fr}.toolbar .full{grid-column:1 / -1}}
   </style>
@@ -58,48 +59,78 @@
         <span id="count" class="count">0 results</span>
         <span id="sources"></span>
         <span id="loading" class="pill">Loading<span class="spinner" id="spin"></span></span>
-        <span style="margin-left:auto"></span>
-        <input id="jsonUrl" type="url" placeholder="JSON URL (same origin)" style="min-width:340px"/>
+        <span style="flex:1 1 auto"></span>
+
+        <!-- Dynamic dataset controls -->
+        <input id="jsonUrl" type="url" placeholder="JSON URL (same origin)" style="min-width:300px"/>
         <button id="btnLoad">Load</button>
+        <input id="jsonFile" type="file" accept=".json,application/json" />
+        <label style="display:inline-flex;gap:6px;align-items:center;font-size:12px;color:#9aa3af;">
+          <input id="mergeToggle" type="checkbox" />
+          Merge (append)
+        </label>
         <button id="btnCSV" class="secondary">Download CSV</button>
+        <button id="btnDownloadJson" class="secondary">Download JSON</button>
       </div>
+
+      <div id="dropZone" class="full">Drag & drop a JSON file here to load</div>
     </div>
 
     <div id="warning" class="warning"></div>
     <div id="list" class="list"></div>
 
     <div class="footer">
-      Tip: you can pass a custom file via <code>?data=/assets/projects/papers-explorer/all_2025_papers.json</code>
+      Tip: pass a custom file via <code>?data=/assets/projects/papers-explorer/all_2025_papers.json</code>
     </div>
   </div>
 
   <script>
   // ---------- Safe coercion helpers ----------
-  function toStr(v) {
-    if (v == null) return "";
-    if (Array.isArray(v)) return v.map(toStr).join(" ");
-    if (typeof v === "object") return JSON.stringify(v);
-    return String(v);
+  function toStr(v) { if (v==null) return ""; if (Array.isArray(v)) return v.map(toStr).join(" "); if (typeof v==="object") return JSON.stringify(v); return String(v); }
+  function toStrOrNull(v) { const s = toStr(v).trim(); return s ? s : null; }
+  function toAuthors(v) { if (Array.isArray(v)) return v.map(toStr).filter(Boolean); if (typeof v==="string") return v.split(/\s*,\s*/).filter(Boolean); return []; }
+  function toYear(v) { const n = Number(String(v??"").trim()); return Number.isFinite(n) ? n : null; }
+  function escapeHTML(s){ return toStr(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+  function attr(s){ return escapeHTML(s); }
+
+  // ---------- Dataset normalization ----------
+  function normalizeArray(data) {
+    return (Array.isArray(data) ? data : []).map(x => ({
+      title: toStr(x.title ?? x.paper_title),
+      authors: toAuthors(x.authors),
+      abstract: toStrOrNull(x.abstract),
+      pdf_url: toStrOrNull(x.pdf_url ?? x.pdf),
+      paper_url: toStrOrNull(x.paper_url ?? x.url),
+      venue: toStrOrNull(x.venue ?? x.conference),
+      year: toYear(x.year),
+    }));
   }
-  function toStrOrNull(v) {
-    const s = toStr(v).trim();
-    return s ? s : null;
+
+  function setDataFromArray(arr, mode /* 'replace' | 'merge' */, label) {
+    const normalized = normalizeArray(arr);
+    if (mode === 'merge') {
+      DATA = DATA.concat(normalized);
+    } else {
+      DATA = normalized;
+    }
+    buildIndex();
+    applyFilters();
+    if (label) elSources.textContent = `Loaded: ${label}`;
+    elWarn.style.display = 'none';
+    elWarn.textContent = '';
   }
-  function toAuthors(v) {
-    if (Array.isArray(v)) return v.map(toStr).filter(Boolean);
-    if (typeof v === "string") return v.split(/\s*,\s*/).filter(Boolean);
-    return [];
+
+  function downloadJSON(rows, filename) {
+    const blob = new Blob([JSON.stringify(rows, null, 2)], {type: 'application/json;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = filename || `papers_${Date.now()}.json`; a.click();
+    URL.revokeObjectURL(url);
   }
-  function toYear(v) {
-    const n = Number(String(v ?? "").trim());
-    return Number.isFinite(n) ? n : null;
-  }
-  function clamp(n, lo, hi){ return Math.max(lo, Math.min(hi, n)); }
 
   // ---------- App state ----------
-  let DATA = [];        // normalized records
-  let VIEW = [];        // filtered/sorted
-  let INDEX = [];       // tokens cache (for quick relevance score)
+  let DATA = [];   // normalized records
+  let VIEW = [];   // filtered/sorted
+  let INDEX = [];  // search bags
 
   // ---------- UI refs ----------
   const elList = document.getElementById('list');
@@ -117,10 +148,7 @@
   const elLoading = document.getElementById('loading');
   const elSpin = document.getElementById('spin');
 
-  function setLoading(on){
-    elLoading.style.display = on ? 'inline-flex' : 'none';
-    elSpin.style.display = on ? 'inline-block' : 'none';
-  }
+  function setLoading(on){ elLoading.style.display = on ? 'inline-flex' : 'none'; elSpin.style.display = on ? 'inline-block' : 'none'; }
 
   // ---------- Render ----------
   function renderList(rows){
@@ -148,34 +176,23 @@
     elCount.textContent = `${rows.length.toLocaleString()} results`;
   }
 
-  function escapeHTML(s){ return toStr(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-  function attr(s){ return escapeHTML(s); }
-
   // ---------- Index / search ----------
   function buildIndex(){
-    INDEX = DATA.map(r => {
-      const bag = (toStr(r.title) + ' ' + toStr(r.abstract) + ' ' + toStr(r.authors?.join(' '))).toLowerCase();
-      return bag;
-    });
-    // populate year options
+    INDEX = DATA.map(r => (toStr(r.title)+' '+toStr(r.abstract)+' '+toStr((r.authors||[]).join(' '))).toLowerCase());
     const years = Array.from(new Set(DATA.map(r => r.year).filter(Boolean))).sort((a,b)=>b-a);
     elYear.innerHTML = `<option value="">Year (all)</option>` + years.map(y=>`<option value="${y}">${y}</option>`).join('');
-    // venue sample
     const venues = Array.from(new Set(DATA.map(r => r.venue).filter(Boolean))).slice(0,6);
     elSources.textContent = venues.length ? `Venues: ${venues.join(' · ')}` : '';
   }
 
   function scoreRow(idx, qTokens){
-    // simple term frequency across our bag; title gets a slight boost separately
     if (!qTokens.length) return 0;
     const bag = INDEX[idx];
     let score = 0;
     for(const t of qTokens){
       if (!t) continue;
-      // count occurrences
       const m = bag.split(t).length - 1;
       score += m;
-      // title boost
       const title = toStr(DATA[idx].title).toLowerCase();
       if (title.includes(t)) score += 2;
     }
@@ -187,7 +204,6 @@
     const yr = toStr(elYear.value).trim();
     const vn = toStr(elVenue.value).trim().toLowerCase();
     const sort = elSort.value;
-
     const qTokens = q ? q.split(/\s+/).filter(Boolean) : [];
 
     let rows = [];
@@ -205,7 +221,7 @@
       }
     }
 
-    // sort
+    // sort rows
     if (sort === 'relevance'){
       rows.sort((a,b)=> b.s - a.s);
     } else if (sort === 'year_desc'){
@@ -229,7 +245,7 @@
         toStr(r.title),
         toStr(r.year),
         toStr(r.venue),
-        toStr(r.authors?.join("; ")),
+        toStr((r.authors||[]).join("; ")),
         toStr(r.pdf_url),
         toStr(r.paper_url),
         toStr(r.abstract)
@@ -238,85 +254,96 @@
     }
     const blob = new Blob([lines.join("\n")], {type:"text/csv;charset=utf-8"});
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `papers_${Date.now()}.csv`;
-    a.click();
+    const a = document.createElement('a'); a.href = url; a.download = `papers_${Date.now()}.csv`; a.click();
     URL.revokeObjectURL(url);
   }
 
-  // ---------- Loading ----------
+  // ---------- Remote loading ----------
   async function loadJson(urlLike){
-    // compute absolute URL on same origin
     const absUrl = urlLike.startsWith('http') ? urlLike
                     : (location.origin + (urlLike.startsWith('/') ? urlLike : '/'+urlLike));
 
-    // reset UI
-    elWarn.style.display = 'none';
-    elWarn.textContent = '';
-    setLoading(true);
-    elJson.value = urlLike;
+    elWarn.style.display = 'none'; elWarn.textContent = '';
+    setLoading(true); elJson.value = urlLike;
 
     try{
       const res = await fetch(absUrl, {cache:'no-store'});
       if (!res.ok) throw new Error(`HTTP ${res.status} on ${absUrl}`);
 
-      let raw;
       let data;
       try{
         data = await res.json();
       }catch(parseErr){
-        raw = await (await fetch(absUrl, {cache:'no-store'})).text();
+        const raw = await (await fetch(absUrl, {cache:'no-store'})).text();
         const sample = raw.slice(0,200).replace(/\n/g,' ');
         throw new Error(`JSON parse error: ${(parseErr && parseErr.message)||parseErr}. Sample: ${sample}`);
       }
 
-      // normalize records robustly (avoid (s||'').replace errors forever)
-      DATA = (Array.isArray(data) ? data : []).map(x => ({
-        title: toStr(x.title ?? x.paper_title),
-        authors: toAuthors(x.authors),
-        abstract: toStrOrNull(x.abstract),
-        pdf_url: toStrOrNull(x.pdf_url ?? x.pdf),
-        paper_url: toStrOrNull(x.paper_url ?? x.url),
-        venue: toStrOrNull(x.venue ?? x.conference),
-        year: toYear(x.year),
-      }));
-
-      buildIndex();
-      elQ.value = ''; elYear.value = ''; elVenue.value = ''; elSort.value = 'relevance';
-      applyFilters();
+      const mode = document.getElementById('mergeToggle').checked ? 'merge' : 'replace';
+      setDataFromArray(data, mode, urlLike);
     }catch(e){
       const msg = (e && e.message) ? e.message : String(e);
       console.error('[JSON load error]', msg);
       elWarn.textContent = `Failed to load JSON: ${msg}`;
       elWarn.style.display = 'block';
-      DATA = []; INDEX=[]; VIEW=[];
-      renderList([]);
+      DATA=[]; INDEX=[]; VIEW=[]; renderList([]);
     }finally{
       setLoading(false);
     }
   }
 
   // ---------- Events ----------
-  function debounce(fn, ms=160){
-    let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), ms); };
-  }
+  function debounce(fn, ms=160){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
   elQ.addEventListener('input', debounce(applyFilters, 120));
   elYear.addEventListener('change', applyFilters);
   elVenue.addEventListener('input', debounce(applyFilters, 120));
   elSort.addEventListener('change', applyFilters);
-  elLoad.addEventListener('click', () => {
+  document.getElementById('btnCSV').addEventListener('click', ()=> downloadCSV(VIEW.length ? VIEW : DATA));
+  document.getElementById('btnDownloadJson').addEventListener('click', ()=> downloadJSON(VIEW.length ? VIEW : DATA, 'papers_export.json'));
+  document.getElementById('btnClear').addEventListener('click', ()=>{ elQ.value=''; elYear.value=''; elVenue.value=''; elSort.value='relevance'; applyFilters(); });
+
+  // URL load button
+  document.getElementById('btnLoad').addEventListener('click', () => {
     const u = toStr(elJson.value).trim() || DEFAULT_JSON;
     loadJson(u + (u.includes('?') ? '&' : '?') + 'nocache=' + Date.now());
   });
-  elCSV.addEventListener('click', ()=> downloadCSV(VIEW));
-  elClear.addEventListener('click', ()=>{
-    elQ.value=''; elYear.value=''; elVenue.value=''; elSort.value='relevance';
-    applyFilters();
+
+  // Local file picker
+  document.getElementById('jsonFile').addEventListener('change', async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const mode = document.getElementById('mergeToggle').checked ? 'merge' : 'replace';
+      setDataFromArray(data, mode, `local file: ${file.name}`);
+    } catch (err) {
+      elWarn.textContent = `Failed to load local JSON: ${err && err.message ? err.message : err}`;
+      elWarn.style.display = 'block';
+    } finally {
+      e.target.value = '';
+    }
+  });
+
+  // Drag & drop
+  const dz = document.getElementById('dropZone');
+  ['dragenter','dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); dz.style.borderColor = '#60a5fa'; }));
+  ['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); dz.style.borderColor = '#2a2f3a'; }));
+  dz.addEventListener('drop', async (e) => {
+    const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const mode = document.getElementById('mergeToggle').checked ? 'merge' : 'replace';
+      setDataFromArray(data, mode, `dropped: ${file.name}`);
+    } catch (err) {
+      elWarn.textContent = `Failed to load dropped JSON: ${err && err.message ? err.message : err}`;
+      elWarn.style.display = 'block';
+    }
   });
 
   // ---------- Boot ----------
-  // Change this if your default JSON file lives elsewhere:
   const DEFAULT_JSON = '/assets/projects/papers-explorer/all_2025_papers.json';
   (function boot(){
     const p = new URLSearchParams(location.search);
