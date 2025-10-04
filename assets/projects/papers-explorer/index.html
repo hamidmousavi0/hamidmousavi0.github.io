@@ -13,6 +13,8 @@
       --accent:#60a5fa;   /* controls buttons/links */
       --title:#a5b4fc;    /* title color (indigo-300) */
       --authors:#22d3ee;  /* authors color (cyan-400) */
+      --hl-bg:#f59e0b;    /* highlight background (amber-500) */
+      --hl-fg:#111827;    /* highlight text (near-black) */
     }
     *{box-sizing:border-box}
     body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
@@ -37,6 +39,7 @@
     .links{margin-top:8px;display:flex;gap:12px;flex-wrap:wrap}
     .pill{display:inline-flex;gap:8px;align-items:center}
     .spinner{display:none;margin-left:8px;border:2px solid #2a2f3a;border-top:2px solid var(--accent);border-radius:50%;width:16px;height:16px;animation:spin 0.9s linear infinite}
+    mark{background:var(--hl-bg);color:var(--hl-fg);padding:0 .12em;border-radius:.2em}
     @keyframes spin{to{transform:rotate(360deg)}}
     @media (max-width:860px){.toolbar{grid-template-columns:1fr 1fr}.toolbar .full{grid-column:1 / -1}}
   </style>
@@ -77,7 +80,7 @@
   </div>
 
   <script>
-  // ---------- Config for abstract length ----------
+  // ---------- Config ----------
   const MAX_ABSTRACT_CHARS = 140; // tweak this to show more/less
 
   // ---------- Safe coercion helpers ----------
@@ -89,9 +92,23 @@
   function attr(s){ return escapeHTML(s); }
   function brief(s, n=MAX_ABSTRACT_CHARS){ s = toStr(s).trim(); if(!s) return null; return s.length>n ? (s.slice(0, n-1)+'…') : s; }
 
+  // ---------- Highlight helpers ----------
+  function escRe(s){ return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+  function highlightHTML(text, tokens){
+    let out = escapeHTML(text ?? '');
+    for(const t of tokens){
+      if(!t) continue;
+      const re = new RegExp(`(${escRe(t)})`, 'gi');
+      out = out.replace(re, '<mark>$1</mark>');
+    }
+    return out;
+  }
+
   // ---------- State ----------
   const ASSET_BASE = '/assets/projects/papers-explorer/';
   const FALLBACK_DATASETS = [
+    { label: 'All 2025 (combined)', path: ASSET_BASE + 'all_2025_papers.json' },
+    { label: 'All 2024 (combined)', path: ASSET_BASE + 'all_2024_papers.json' },
     { label: 'NeurIPS 2025', path: ASSET_BASE + 'neurips_2025_papers.json' },
     { label: 'CVPR 2025', path: ASSET_BASE + 'cvpr_2025_papers.json' },
   ];
@@ -132,20 +149,26 @@
   }
 
   // ---------- Render ----------
-  function renderList(rows){
+  function renderList(rows, tokens=[]){
     elList.innerHTML = '';
     const frag = document.createDocumentFragment();
     for(const r of rows){
       const art = document.createElement('article');
       art.className = 'card';
+      const titleHTML   = tokens.length ? highlightHTML(r.title || '(Untitled)', tokens) : escapeHTML(r.title || '(Untitled)');
+      const authorsText = (r.authors||[]).join(', ');
+      const authorsHTML = tokens.length ? highlightHTML(authorsText, tokens) : escapeHTML(authorsText);
+      const absText     = brief(r.abstract);
+      const absHTML     = absText ? (tokens.length ? highlightHTML(absText, tokens) : escapeHTML(absText)) : '';
+
       art.innerHTML = `
-        <div class="title">${escapeHTML(r.title || '(Untitled)')}</div>
+        <div class="title">${titleHTML}</div>
         <div class="meta">
           ${r.year ? `<span>${r.year}</span>` : ''}
           ${r.venue ? `<span>• ${escapeHTML(r.venue)}</span>` : ''}
         </div>
-        ${r.authors?.length ? `<div class="authors">${escapeHTML(r.authors.join(', '))}</div>` : ''}
-        ${r.abstract ? `<div class="abs">${escapeHTML(brief(r.abstract))}</div>` : ''}
+        ${authorsText ? `<div class="authors">${authorsHTML}</div>` : ''}
+        ${absHTML ? `<div class="abs">${absHTML}</div>` : ''}
         <div class="links">
           ${r.pdf_url ? `<a href="${attr(r.pdf_url)}" target="_blank" rel="noopener">PDF</a>` : ''}
           ${r.paper_url ? `<a href="${attr(r.paper_url)}" target="_blank" rel="noopener">Source</a>` : ''}
@@ -211,7 +234,7 @@
     }
 
     VIEW = rows.map(x=>x.row);
-    renderList(VIEW);
+    renderList(VIEW, qTokens);
   }
 
   // ---------- CSV ----------
