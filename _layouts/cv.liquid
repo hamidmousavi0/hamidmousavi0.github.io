@@ -6,7 +6,8 @@ layout: default
     <header class="post-header">
       <h1 class="post-title">
         {{ page.title }}
-        {% if page.cv_pdf %}
+        {% if page.cv_pdf or page.cv_docx %}
+          {% if page.cv_pdf %}
           <a
             {% if page.cv_pdf contains '://' %}
               href="{{ page.cv_pdf }}"
@@ -19,6 +20,23 @@ layout: default
           >
             <i class="fa-solid fa-file-pdf"></i>
           </a>
+          {% endif %}
+    {% if page.cv_docx %}
+    <a
+      {% if page.cv_docx contains '://' %}
+        href="{{ page.cv_docx }}"
+      {% else %}
+        href="{{ page.cv_docx | prepend: 'assets/pdf/' | relative_url }}"
+      {% endif %}
+      target="_blank"
+      rel="noopener noreferrer"
+      class="float-right"
+      title="Download CV (DOCX)"
+      style="margin-right: 0.75rem;"
+    >
+      <i class="fa-solid fa-file-word"></i>
+    </a>
+  {% endif %}
         {% endif %}
       </h1>
       {% if page.description %}
